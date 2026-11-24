@@ -82,7 +82,7 @@ public sealed class Combatant
             Conditions &= ~Condition.Unconscious;
         }
 
-        CurrentHp = Math.Min(MaxHp, CurrentHp + amount);
+        CurrentHp = (int)Math.Min(MaxHp, (long)CurrentHp + amount);
     }
 
     internal void SetTempHp(int amount) => TempHp = amount;

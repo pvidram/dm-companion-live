@@ -56,6 +56,20 @@ public class HitPointsTests
     }
 
     [Fact]
+    public void Extreme_amounts_do_not_overflow_hp()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15));
+        var lyra = session.Combatants.Single();
+        session.ApplyDamage(Dm, lyra.Id, 5, Now);
+
+        session.Heal(Dm, lyra.Id, int.MaxValue, Now);
+        lyra.CurrentHp.Should().Be(lyra.MaxHp);
+
+        session.ApplyDamage(Dm, lyra.Id, int.MaxValue, Now);
+        lyra.CurrentHp.Should().Be(0);
+    }
+
+    [Fact]
     public void A_monster_at_zero_hp_is_defeated()
     {
         var session = NewSession();
