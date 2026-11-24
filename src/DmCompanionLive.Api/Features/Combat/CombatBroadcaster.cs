@@ -21,7 +21,7 @@ public sealed class CombatBroadcaster(IHubContext<CombatHub, ICombatClient> hub,
                 .PlayerSnapshot(CombatViews.ForPlayer(session, guestId));
         }
 
-        var visible = events.Where(e => e.VisibleToPlayers).Select(LogEntryDto.From).ToList();
+        var visible = events.Where(e => e.VisibleToPlayers).Select(e => LogEntryDto.From(e).ForPlayers()).ToList();
         if (visible.Count > 0)
         {
             await hub.Clients.Group(CombatGroups.Players(session.Id)).LogAppended(visible);

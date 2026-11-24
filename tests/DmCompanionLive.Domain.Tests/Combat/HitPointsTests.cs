@@ -70,6 +70,20 @@ public class HitPointsTests
     }
 
     [Fact]
+    public void Events_about_a_combatant_carry_its_kind()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15));
+        var lyra = session.Combatants.Single();
+        var goblin = session.AddMonster(Dm, new MonsterSeed("Goblin", 7, 15), Now);
+
+        session.Heal(Dm, lyra.Id, 1, Now);
+        session.Heal(Dm, goblin, 1, Now);
+
+        session.UncommittedEvents[^2].Parameters.Should().Contain("kind", "Pc");
+        session.UncommittedEvents[^1].Parameters.Should().Contain("kind", "Monster");
+    }
+
+    [Fact]
     public void A_monster_at_zero_hp_is_defeated()
     {
         var session = NewSession();

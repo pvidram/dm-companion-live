@@ -139,7 +139,9 @@ public sealed class CombatHub(
             .OrderByDescending(e => e.Version)
             .Take(LogTail)
             .ToListAsync(Context.ConnectionAborted);
-        var log = latest.OrderBy(e => e.Version).Select(LogEntryDto.From).ToList();
+        var log = latest.OrderBy(e => e.Version)
+            .Select(e => isDm ? LogEntryDto.From(e) : LogEntryDto.From(e).ForPlayers())
+            .ToList();
 
         return actor is Actor.Guest guest
             ? SnapshotResult.ForPlayer(CombatViews.ForPlayer(session, guest.GuestId), log)
