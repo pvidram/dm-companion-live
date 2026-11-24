@@ -75,4 +75,33 @@ public class CombatCommandsTests
         remove.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.NotAllowed);
         end.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.NotAllowed);
     }
+
+    [Fact]
+    public void Removing_someone_else_keeps_the_current_turn()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15), new PcSeed("Torvald", 30, 18));
+        var lyra = session.Combatants[0].Id;
+        var torvald = session.Combatants[1].Id;
+        session.SetInitiative(Dm, lyra, 18, Now);
+        session.SetInitiative(Dm, torvald, 12, Now);
+        session.Start(Dm, Now);
+
+        session.Remove(Dm, torvald, Now);
+
+        session.CurrentTurnId.Should().Be(lyra);
+        session.Round.Should().Be(1);
+        session.Combatants.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void Removing_in_the_lobby_does_not_start_any_turn()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15), new PcSeed("Torvald", 30, 18));
+
+        session.Remove(Dm, session.Combatants[0].Id, Now);
+
+        session.CurrentTurnId.Should().BeNull();
+        session.Round.Should().Be(0);
+        session.Combatants.Should().ContainSingle().Which.Name.Should().Be("Torvald");
+    }
 }

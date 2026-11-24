@@ -24,6 +24,9 @@ public sealed class Combatant
     public Guid? ClaimedBy { get; private set; }
     public int SortOrder { get; private set; }
 
+    /// <summary>Round in which this combatant last began a turn; null before its first turn.</summary>
+    public int? LastTurnRound { get; private set; }
+
     /// <summary>Only monsters are defeated at 0 HP; PCs fall unconscious and keep their turn.</summary>
     public bool IsDefeated => Kind == CombatantKind.Monster && CurrentHp == 0;
 
@@ -83,6 +86,8 @@ public sealed class Combatant
     }
 
     internal void SetTempHp(int amount) => TempHp = amount;
+
+    internal void BeginTurn(int round) => LastTurnRound = round;
 
     internal void SetInitiative(int value) => Initiative = value;
 

@@ -115,6 +115,93 @@ public class TurnOrderTests
         act.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.InvalidState);
     }
 
+    [Fact]
+    public void Lowering_the_initiative_of_who_just_acted_neither_skips_nor_repeats_turns()
+    {
+        var session = StartedSessionWithThreePcs(out var a, out var b, out var c);
+        session.NextTurn(Dm, Now);
+        session.SetInitiative(Dm, b, 5, Now);
+
+        session.NextTurn(Dm, Now);
+        session.CurrentTurnId.Should().Be(c);
+        session.Round.Should().Be(1);
+
+        session.NextTurn(Dm, Now);
+        session.CurrentTurnId.Should().Be(a);
+        session.Round.Should().Be(2);
+    }
+
+    [Fact]
+    public void Raising_the_initiative_of_who_has_not_acted_keeps_their_turn_this_round()
+    {
+        var session = StartedSessionWithThreePcs(out _, out _, out var c);
+        session.NextTurn(Dm, Now);
+        session.SetInitiative(Dm, c, 25, Now);
+
+        session.NextTurn(Dm, Now);
+        session.CurrentTurnId.Should().Be(c);
+        session.Round.Should().Be(1);
+
+        session.NextTurn(Dm, Now);
+        session.CurrentTurnId.Should().Be(c);
+        session.Round.Should().Be(2);
+    }
+
+    [Fact]
+    public void A_monster_added_mid_round_acts_in_the_same_round()
+    {
+        var session = StartedSessionWithTwoPcs(out var first, out var second);
+        var goblin = session.AddMonster(Dm, new MonsterSeed("Goblin", 7, 15), Now);
+        session.SetInitiative(Dm, goblin, 15, Now);
+
+        session.NextTurn(Dm, Now);
+        session.CurrentTurnId.Should().Be(goblin);
+        session.NextTurn(Dm, Now);
+        session.CurrentTurnId.Should().Be(second);
+        session.NextTurn(Dm, Now);
+        session.CurrentTurnId.Should().Be(first);
+        session.Round.Should().Be(2);
+    }
+
+    [Fact]
+    public void Next_turn_fails_when_every_combatant_is_defeated()
+    {
+        var session = NewSession();
+        var goblin = session.AddMonster(Dm, new MonsterSeed("Goblin", 7, 15), Now);
+        var orc = session.AddMonster(Dm, new MonsterSeed("Orc", 15, 13), Now);
+        session.Start(Dm, Now);
+        session.ApplyDamage(Dm, goblin, 7, Now);
+        session.ApplyDamage(Dm, orc, 15, Now);
+
+        var act = () => session.NextTurn(Dm, Now);
+
+        act.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.NoCombatants);
+    }
+
+    [Fact]
+    public void A_single_combatant_gets_a_turn_every_round()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15));
+        session.Start(Dm, Now);
+
+        session.NextTurn(Dm, Now);
+        session.NextTurn(Dm, Now);
+
+        session.CurrentTurnId.Should().Be(session.Combatants.Single().Id);
+        session.Round.Should().Be(3);
+    }
+
+    private static CombatSession StartedSessionWithThreePcs(out Guid a, out Guid b, out Guid c)
+    {
+        var session = NewSession(new PcSeed("Ana", 20, 15), new PcSeed("Bo", 20, 15), new PcSeed("Cy", 20, 15));
+        (a, b, c, _) = Ids(session);
+        session.SetInitiative(Dm, a, 20, Now);
+        session.SetInitiative(Dm, b, 15, Now);
+        session.SetInitiative(Dm, c, 10, Now);
+        session.Start(Dm, Now);
+        return session;
+    }
+
     private static CombatSession StartedSessionWithTwoPcs(out Guid first, out Guid second)
     {
         var session = NewSession(new PcSeed("Lyra", 20, 15), new PcSeed("Torvald", 30, 18));
