@@ -1,0 +1,112 @@
+namespace DmCompanionLive.Domain.Combat;
+
+public sealed class Combatant
+{
+    public const int MaxNameLength = 80;
+
+    private Combatant()
+    {
+        Name = string.Empty;
+    }
+
+    public Guid Id { get; private set; }
+    public CombatantKind Kind { get; private set; }
+    public string Name { get; private set; }
+    public int? Initiative { get; private set; }
+    public int DexModifier { get; private set; }
+    public int MaxHp { get; private set; }
+    public int CurrentHp { get; private set; }
+    public int TempHp { get; private set; }
+    public int Ac { get; private set; }
+    public Condition Conditions { get; private set; }
+    public bool IsHidden { get; private set; }
+    public string? SourceRef { get; private set; }
+    public Guid? ClaimedBy { get; private set; }
+    public int SortOrder { get; private set; }
+
+    /// <summary>Only monsters are defeated at 0 HP; PCs fall unconscious and keep their turn.</summary>
+    public bool IsDefeated => Kind == CombatantKind.Monster && CurrentHp == 0;
+
+    internal static Combatant CreatePc(PcSeed seed, int sortOrder)
+    {
+        Validate(seed.Name, seed.MaxHp, seed.Ac);
+        return new Combatant
+        {
+            Id = Guid.NewGuid(),
+            Kind = CombatantKind.Pc,
+            Name = seed.Name.Trim(),
+            MaxHp = seed.MaxHp,
+            CurrentHp = seed.MaxHp,
+            Ac = seed.Ac,
+            DexModifier = seed.DexModifier,
+            SortOrder = sortOrder,
+        };
+    }
+
+    internal static Combatant CreateMonster(MonsterSeed seed, int sortOrder)
+    {
+        Validate(seed.Name, seed.MaxHp, seed.Ac);
+        return new Combatant
+        {
+            Id = Guid.NewGuid(),
+            Kind = CombatantKind.Monster,
+            Name = seed.Name.Trim(),
+            MaxHp = seed.MaxHp,
+            CurrentHp = seed.MaxHp,
+            Ac = seed.Ac,
+            DexModifier = seed.DexModifier,
+            IsHidden = seed.IsHidden,
+            SourceRef = seed.SourceRef,
+            SortOrder = sortOrder,
+        };
+    }
+
+    internal void TakeDamage(int amount)
+    {
+        var absorbed = Math.Min(TempHp, amount);
+        TempHp -= absorbed;
+        CurrentHp = Math.Max(0, CurrentHp - (amount - absorbed));
+        if (Kind == CombatantKind.Pc && CurrentHp == 0)
+        {
+            Conditions |= Condition.Unconscious;
+        }
+    }
+
+    internal void Heal(int amount)
+    {
+        if (Kind == CombatantKind.Pc && CurrentHp == 0)
+        {
+            Conditions &= ~Condition.Unconscious;
+        }
+
+        CurrentHp = Math.Min(MaxHp, CurrentHp + amount);
+    }
+
+    internal void SetTempHp(int amount) => TempHp = amount;
+
+    internal void SetInitiative(int value) => Initiative = value;
+
+    internal void SetConditions(Condition conditions) => Conditions = conditions;
+
+    internal void Reveal() => IsHidden = false;
+
+    internal void ClaimBy(Guid guestId) => ClaimedBy = guestId;
+
+    private static void Validate(string name, int maxHp, int ac)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > MaxNameLength)
+        {
+            throw new DomainException(DomainErrorCode.InvalidValue, $"Name must have 1 to {MaxNameLength} characters.");
+        }
+
+        if (maxHp < 1)
+        {
+            throw new DomainException(DomainErrorCode.InvalidValue, "Max HP must be at least 1.");
+        }
+
+        if (ac < 0)
+        {
+            throw new DomainException(DomainErrorCode.InvalidValue, "AC cannot be negative.");
+        }
+    }
+}
