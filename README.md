@@ -15,7 +15,7 @@ Requirements: .NET SDK from `global.json`, Docker.
 ```bash
 docker compose up -d db
 dotnet run --project src/DmCompanionLive.Api
-# API docs: http://localhost:<port>/scalar/v1 · dev sign-in: POST /dev/login { "displayName": "..." }
+# API docs: http://localhost:5198/scalar/v1 · dev sign-in: POST /dev/login { "displayName": "..." }
 ```
 
 ## Tests
