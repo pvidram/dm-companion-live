@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using System.Text.Json.Serialization;
 using DmCompanionLive.Api.Auth;
 using DmCompanionLive.Api.Errors;
@@ -28,6 +29,15 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddSingleton<IJoinCodeGenerator, RandomJoinCodeGenerator>();
 builder.Services.AddOpenApi();
 builder.Services.AddDmAuthentication(builder.Environment);
+var joinPermits = builder.Configuration.GetValue("RateLimiting:JoinPermitsPerMinute", 10);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // Per client address. Behind a reverse proxy this needs ForwardedHeaders (Plan 5).
+    options.AddPolicy(JoinSessionEndpoint.RateLimitPolicy, http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = joinPermits, Window = TimeSpan.FromMinutes(1) }));
+});
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
 var app = builder.Build();
@@ -42,6 +52,7 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapOpenApi();
 app.MapScalarApiReference();
@@ -55,6 +66,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 app.MapAuth();
 app.MapTables();
 app.MapSessions();
+app.MapJoinSession();
 
 app.Run();
 

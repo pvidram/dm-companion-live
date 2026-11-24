@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace DmCompanionLive.Api.Auth;
@@ -6,8 +7,13 @@ public static class AuthSetup
 {
     public const string DmPolicy = "Dm";
 
+    /// <summary>The DM (cookie) or a player (guest token): whoever may connect to a combat.</summary>
+    public const string CombatPolicy = "CombatParticipant";
+
     public static IServiceCollection AddDmAuthentication(this IServiceCollection services, IHostEnvironment environment)
     {
+        services.AddDataProtection();
+        services.AddSingleton<GuestTokens>();
         services
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
             .AddCookie(options =>
@@ -31,12 +37,18 @@ public static class AuthSetup
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
                     return Task.CompletedTask;
                 };
-            });
+            })
+            .AddScheme<AuthenticationSchemeOptions, GuestTokenHandler>(GuestTokenHandler.Scheme, _ => { });
         services.AddAuthorization(options =>
+        {
             options.AddPolicy(DmPolicy, policy => policy
                 .AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme)
                 .RequireAuthenticatedUser()
-                .RequireClaim(AppClaims.Role, AppClaims.DmRole)));
+                .RequireClaim(AppClaims.Role, AppClaims.DmRole));
+            options.AddPolicy(CombatPolicy, policy => policy
+                .AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme, GuestTokenHandler.Scheme)
+                .RequireAuthenticatedUser());
+        });
         return services;
     }
 }
