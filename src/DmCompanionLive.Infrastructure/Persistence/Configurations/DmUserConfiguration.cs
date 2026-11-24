@@ -11,7 +11,7 @@ internal sealed class DmUserConfiguration : IEntityTypeConfiguration<DmUser>
         builder.ToTable("dm_users");
         builder.HasKey(u => u.Id);
         builder.Property(u => u.Id).ValueGeneratedNever();
-        builder.Property(u => u.ExternalId).HasMaxLength(200).IsRequired();
+        builder.Property(u => u.ExternalId).HasMaxLength(DmUser.MaxExternalIdLength).IsRequired();
         builder.HasIndex(u => u.ExternalId).IsUnique();
         builder.Property(u => u.DisplayName).HasMaxLength(DmUser.MaxDisplayNameLength).IsRequired();
     }

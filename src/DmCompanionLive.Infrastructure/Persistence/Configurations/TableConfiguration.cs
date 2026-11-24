@@ -1,3 +1,4 @@
+using DmCompanionLive.Domain.Users;
 using DmCompanionLive.Domain.Tables;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -13,6 +14,7 @@ internal sealed class TableConfiguration : IEntityTypeConfiguration<Table>
         builder.Property(t => t.Id).ValueGeneratedNever();
         builder.Property(t => t.Name).HasMaxLength(Table.MaxNameLength).IsRequired();
         builder.HasIndex(t => t.OwnerId);
+        builder.HasOne<DmUser>().WithMany().HasForeignKey(t => t.OwnerId).OnDelete(DeleteBehavior.Cascade);
 
         builder.OwnsMany(t => t.Characters, character =>
         {
