@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DmCompanionLive.Api/DmCompanionLive.Api.csproj" />
+    <Project Path="src/DmCompanionLive.Domain/DmCompanionLive.Domain.csproj" />
+    <Project Path="src/DmCompanionLive.Infrastructure/DmCompanionLive.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DmCompanionLive.Api.IntegrationTests/DmCompanionLive.Api.IntegrationTests.csproj" />
+    <Project Path="tests/DmCompanionLive.Domain.Tests/DmCompanionLive.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
