@@ -61,3 +61,9 @@ public static class CombatErrors
     public const string NotJoined = "NotJoined";
     public const string Conflict = nameof(DomainErrorCode.Conflict);
 }
+
+/// <summary>A monster the DM adds by hand (SRD monsters and templates come in Plan 3).</summary>
+public sealed record MonsterInput(string Name, int MaxHp, int Ac, int DexModifier = 0, bool IsHidden = false)
+{
+    public MonsterSeed ToSeed() => new(Name, MaxHp, Ac, DexModifier, IsHidden);
+}

@@ -12,7 +12,11 @@ namespace DmCompanionLive.Api.Features.Combat;
 /// receives its view after every change and can send commands.
 /// </summary>
 [Authorize(Policy = AuthSetup.CombatPolicy)]
-public sealed class CombatHub(AppDbContext db, SessionPresence presence) : Hub<ICombatClient>
+public sealed class CombatHub(
+    AppDbContext db,
+    SessionPresence presence,
+    CombatCommandRunner runner,
+    IDiceRoller dice) : Hub<ICombatClient>
 {
     private const string SessionKey = "sessionId";
     private const int LogTail = 100;
@@ -64,6 +68,61 @@ public sealed class CombatHub(AppDbContext db, SessionPresence presence) : Hub<I
         return session is null
             ? SnapshotResult.Fail(CombatErrors.SessionNotFound)
             : await SnapshotAsync(session, identity.Actor);
+    }
+
+    public Task<CommandResult> AddMonster(MonsterInput monster, int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.AddMonster(actor, monster.ToSeed(), now));
+
+    public Task<CommandResult> RollMonsterInitiative(int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.RollMonsterInitiative(actor, dice, now));
+
+    public Task<CommandResult> Start(int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.Start(actor, now));
+
+    public Task<CommandResult> NextTurn(int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.NextTurn(actor, now));
+
+    public Task<CommandResult> End(int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.End(actor, now));
+
+    public Task<CommandResult> ApplyDamage(Guid combatantId, int amount, int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.ApplyDamage(actor, combatantId, amount, now));
+
+    public Task<CommandResult> Heal(Guid combatantId, int amount, int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.Heal(actor, combatantId, amount, now));
+
+    public Task<CommandResult> SetTempHp(Guid combatantId, int amount, int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.SetTempHp(actor, combatantId, amount, now));
+
+    public Task<CommandResult> SetInitiative(Guid combatantId, int value, int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.SetInitiative(actor, combatantId, value, now));
+
+    public Task<CommandResult> SetConditions(Guid combatantId, IReadOnlyList<Condition> conditions, int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.SetConditions(
+            actor, combatantId, conditions.Aggregate(Condition.None, (all, c) => all | c), now));
+
+    public Task<CommandResult> Reveal(Guid combatantId, int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.Reveal(actor, combatantId, now));
+
+    public Task<CommandResult> Remove(Guid combatantId, int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.Remove(actor, combatantId, now));
+
+    public Task<CommandResult> Claim(Guid combatantId, int expectedVersion) =>
+        Run(expectedVersion, (s, actor, now) => s.Claim(actor, combatantId, now));
+
+    private async Task<CommandResult> Run(int expectedVersion, Action<CombatSession, Actor, DateTimeOffset> command)
+    {
+        if (JoinedSessionId is not { } sessionId || CombatIdentity.From(Context.User) is not { } identity)
+        {
+            return CommandResult.Fail(CombatErrors.NotJoined, 0);
+        }
+
+        return await runner.RunAsync(
+            sessionId,
+            identity.Actor,
+            expectedVersion,
+            (session, now) => command(session, identity.Actor, now),
+            Context.ConnectionAborted);
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)

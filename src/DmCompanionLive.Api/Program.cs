@@ -6,6 +6,7 @@ using DmCompanionLive.Api.Features.Auth;
 using DmCompanionLive.Api.Features.Combat;
 using DmCompanionLive.Api.Features.Sessions;
 using DmCompanionLive.Api.Features.Tables;
+using DmCompanionLive.Domain.Combat;
 using DmCompanionLive.Infrastructure;
 using DmCompanionLive.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +49,9 @@ builder.Services
         options.PayloadSerializerOptions.RespectNullableAnnotations = true;
     });
 builder.Services.AddSingleton<SessionPresence>();
+builder.Services.AddSingleton<CombatBroadcaster>();
+builder.Services.AddScoped<CombatCommandRunner>();
+builder.Services.AddSingleton<IDiceRoller, RandomDiceRoller>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
 var app = builder.Build();
