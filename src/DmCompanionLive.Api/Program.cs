@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using DmCompanionLive.Api.Auth;
 using DmCompanionLive.Api.Errors;
 using DmCompanionLive.Api.Features.Auth;
+using DmCompanionLive.Api.Features.Tables;
 using DmCompanionLive.Infrastructure;
 using DmCompanionLive.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +46,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 }
 
 app.MapAuth();
+app.MapTables();
 
 app.Run();
 
