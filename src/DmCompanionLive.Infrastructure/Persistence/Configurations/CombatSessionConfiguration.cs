@@ -1,3 +1,5 @@
+using DmCompanionLive.Domain.Tables;
+using DmCompanionLive.Domain.Users;
 using DmCompanionLive.Domain.Combat;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -14,6 +16,8 @@ internal sealed class CombatSessionConfiguration : IEntityTypeConfiguration<Comb
         builder.Property(s => s.JoinCode).HasMaxLength(JoinCode.Length).IsRequired();
         builder.HasIndex(s => s.JoinCode).IsUnique();
         builder.HasIndex(s => s.OwnerId);
+        builder.HasOne<Table>().WithMany().HasForeignKey(s => s.TableId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<DmUser>().WithMany().HasForeignKey(s => s.OwnerId).OnDelete(DeleteBehavior.Cascade);
         builder.Property(s => s.Status).HasConversion<string>().HasMaxLength(16);
         builder.Property(s => s.Version).IsConcurrencyToken();
         builder.Ignore(s => s.UncommittedEvents);

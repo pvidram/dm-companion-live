@@ -10,6 +10,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<DmUser> Users => Set<DmUser>();
     public DbSet<Table> Tables => Set<Table>();
     public DbSet<CombatSession> Sessions => Set<CombatSession>();
+    public DbSet<CombatLogEntry> CombatLog => Set<CombatLogEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

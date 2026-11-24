@@ -63,6 +63,8 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("OwnerId");
 
+                    b.HasIndex("TableId");
+
                     b.ToTable("combat_sessions", (string)null);
                 });
 
@@ -115,8 +117,62 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
                     b.ToTable("dm_users", (string)null);
                 });
 
+            modelBuilder.Entity("DmCompanionLive.Infrastructure.Persistence.CombatLogEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Parameters")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("VisibleToPlayers")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId", "Version")
+                        .IsUnique();
+
+                    b.ToTable("combat_log", (string)null);
+                });
+
             modelBuilder.Entity("DmCompanionLive.Domain.Combat.CombatSession", b =>
                 {
+                    b.HasOne("DmCompanionLive.Domain.Users.DmUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DmCompanionLive.Domain.Tables.Table", null)
+                        .WithMany()
+                        .HasForeignKey("TableId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.OwnsMany("DmCompanionLive.Domain.Combat.Combatant", "Combatants", b1 =>
                         {
                             b1.Property<Guid>("Id")
@@ -147,6 +203,9 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
                                 .IsRequired()
                                 .HasMaxLength(16)
                                 .HasColumnType("character varying(16)");
+
+                            b1.Property<int?>("LastTurnRound")
+                                .HasColumnType("integer");
 
                             b1.Property<int>("MaxHp")
                                 .HasColumnType("integer");
@@ -184,6 +243,12 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("DmCompanionLive.Domain.Tables.Table", b =>
                 {
+                    b.HasOne("DmCompanionLive.Domain.Users.DmUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.OwnsMany("DmCompanionLive.Domain.Tables.PlayerCharacter", "Characters", b1 =>
                         {
                             b1.Property<Guid>("Id")
@@ -217,6 +282,15 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Characters");
+                });
+
+            modelBuilder.Entity("DmCompanionLive.Infrastructure.Persistence.CombatLogEntry", b =>
+                {
+                    b.HasOne("DmCompanionLive.Domain.Combat.CombatSession", null)
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
