@@ -65,7 +65,7 @@ Domain rules (all unit-tested):
 - `NextTurn()` skips defeated combatants; wraps to the next round.
 - HP clamped to `[0, MaxHp]`; damage consumes TempHp first; reaching 0 marks a monster defeated and a PC `Unconscious`.
 - Players may only act on the combatant they claimed; no command succeeds on an `Ended` session.
-- Every successful command increments `Version` and yields one `CombatLogEntry`.
+- Every successful command increments `Version` and yields one `CombatLogEntry`. An idempotent command that changes nothing (re-claiming your own character) neither bumps `Version` nor logs.
 
 Views computed server-side:
 - `DmView`: full state.
@@ -82,7 +82,7 @@ REST (OpenAPI via `Microsoft.AspNetCore.OpenApi`, UI via Scalar, `ProblemDetails
 - `GET /health` (includes DB check)
 
 SignalR hub `/hubs/combat` (one group per session):
-- On connect: identity resolved once (DM cookie or `GuestToken`), caller receives its full view.
+- Identity is resolved per connection (DM cookie or `GuestToken`); the caller receives its full view when it calls `Join(code)`.
 - Commands (each with `expectedVersion`): `AddMonster`, `RollMonsterInitiative`, `Start`, `NextTurn`, `End`, `Reveal`, `Remove` (DM only); `ApplyDamage`, `Heal`, `SetTempHp`, `SetInitiative`, `SetConditions` (DM on anyone, a player on the character they claimed); `Claim` (players). The domain authorizes every command, so both roles share the same hub methods.
 - Command pipeline: load session → domain method → save state + log entry in one transaction with optimistic concurrency on `Version` → broadcast `DmView` to the DM and `PlayerView` to players.
 - Every command carries `expectedVersion`; mismatch → `Conflict`, client re-fetches the snapshot.
