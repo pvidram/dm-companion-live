@@ -145,6 +145,78 @@ public sealed class CombatSession
         Record(actor, now, "TurnAdvanced", Current(), ("round", Round));
     }
 
+    public void Claim(Actor actor, Guid combatantId, DateTimeOffset now)
+    {
+        EnsureNotEnded();
+        if (actor is not Actor.Guest guest)
+        {
+            throw new DomainException(DomainErrorCode.NotAllowed, "Only players claim characters.");
+        }
+
+        var character = Find(combatantId);
+        if (character.Kind != CombatantKind.Pc)
+        {
+            throw new DomainException(DomainErrorCode.NotAllowed, "Only player characters can be claimed.");
+        }
+
+        if (character.ClaimedBy == guest.GuestId)
+        {
+            return;
+        }
+
+        if (character.ClaimedBy is not null)
+        {
+            throw new DomainException(DomainErrorCode.AlreadyClaimed, "Another player already controls this character.");
+        }
+
+        if (_combatants.Any(c => c.ClaimedBy == guest.GuestId))
+        {
+            throw new DomainException(DomainErrorCode.AlreadyHasCharacter, "You already control a character.");
+        }
+
+        character.ClaimBy(guest.GuestId);
+        Record(actor, now, "CharacterClaimed", character);
+    }
+
+    public void SetConditions(Actor actor, Guid combatantId, Condition conditions, DateTimeOffset now)
+    {
+        var target = Controllable(actor, combatantId);
+        target.SetConditions(conditions);
+        Record(actor, now, "ConditionsSet", target, ("conditions", conditions));
+    }
+
+    public void Reveal(Actor actor, Guid combatantId, DateTimeOffset now)
+    {
+        EnsureNotEnded();
+        EnsureDm(actor);
+        var target = Find(combatantId);
+        target.Reveal();
+        Record(actor, now, "Revealed", target);
+    }
+
+    public void Remove(Actor actor, Guid combatantId, DateTimeOffset now)
+    {
+        EnsureNotEnded();
+        EnsureDm(actor);
+        var target = Find(combatantId);
+        if (Status == SessionStatus.Active && CurrentTurnId == target.Id && !TryAdvance(excluded: target.Id))
+        {
+            CurrentTurnId = null;
+        }
+
+        _combatants.Remove(target);
+        Record(actor, now, "Removed", target);
+    }
+
+    public void End(Actor actor, DateTimeOffset now)
+    {
+        EnsureNotEnded();
+        EnsureDm(actor);
+        Status = SessionStatus.Ended;
+        CurrentTurnId = null;
+        Record(actor, now, "CombatEnded");
+    }
+
     public void ClearUncommittedEvents() => _uncommittedEvents.Clear();
 
     private Combatant Controllable(Actor actor, Guid combatantId)
