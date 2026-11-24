@@ -1,3 +1,4 @@
+using DmCompanionLive.Domain.Combat;
 using DmCompanionLive.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
@@ -14,6 +15,15 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public AppDbContext CreateDbContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(ConnectionString).Options);
+
+    /// <summary>Changes a stored session directly through the domain, bypassing the API.</summary>
+    public async Task ChangeSessionAsync(Guid sessionId, Action<CombatSession> change)
+    {
+        await using var db = CreateDbContext();
+        var session = await db.Sessions.SingleAsync(s => s.Id == sessionId);
+        change(session);
+        await db.SaveChangesAsync();
+    }
 
     public async Task InitializeAsync()
     {
