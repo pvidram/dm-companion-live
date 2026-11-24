@@ -340,6 +340,7 @@ public sealed class CombatSession
         {
             parameters["combatantId"] = subject.Id.ToString();
             parameters["name"] = subject.Name;
+            parameters["kind"] = subject.Kind.ToString();
         }
 
         foreach (var (key, value) in data)

@@ -27,6 +27,26 @@ public sealed record LogEntryDto(
 
     public static LogEntryDto From(CombatEvent e) =>
         new(e.Version, e.At, e.ActorName, e.Type, e.Parameters);
+
+    /// <summary>
+    /// The entry as players may see it: players never learn exact monster hit points, so heals and
+    /// temporary HP about a monster lose their amount. Damage keeps it (players know what they dealt).
+    /// </summary>
+    public LogEntryDto ForPlayers()
+    {
+        if (Parameters.TryGetValue("kind", out var kind)
+            && kind == nameof(CombatantKind.Monster)
+            && Type is "Healed" or "TempHpSet"
+            && Parameters.ContainsKey("amount"))
+        {
+            return this with
+            {
+                Parameters = Parameters.Where(p => p.Key != "amount").ToDictionary(p => p.Key, p => p.Value),
+            };
+        }
+
+        return this;
+    }
 }
 
 /// <summary>The caller's view of the session plus the latest log entries it may see.</summary>

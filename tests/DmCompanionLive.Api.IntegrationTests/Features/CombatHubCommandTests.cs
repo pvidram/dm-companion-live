@@ -144,6 +144,40 @@ public sealed class CombatHubCommandTests(PostgresFixture postgres) : IAsyncLife
     }
 
     [Fact]
+    public async Task Players_do_not_get_exact_monster_hp_numbers_in_the_log()
+    {
+        var (dm, code) = await DmWithSessionAsync("Lyra");
+        var ana = await PlayerAsync(code, "Ana");
+        var version = dm.Joined.Dm!.Version;
+        version = Accepted(await dm.Hub.InvokeAsync<CommandResult>("AddMonster", new MonsterInput("Orc", 15, 13), version));
+        var orc = Id(await dm.Snapshots.WaitForAsync(v => Version(v) == version), "Orc");
+        version = Accepted(await dm.Hub.InvokeAsync<CommandResult>("ApplyDamage", orc, 5, version));
+        version = Accepted(await dm.Hub.InvokeAsync<CommandResult>("Heal", orc, 3, version));
+        version = Accepted(await dm.Hub.InvokeAsync<CommandResult>("SetTempHp", orc, 4, version));
+
+        await ana.Log.WaitForAsync(entries => entries.EnumerateArray().Any(e => e.GetProperty("type").GetString() == "TempHpSet"));
+        var dmSnapshot = (await dm.Hub.InvokeAsync<SnapshotResult>("GetSnapshot")).Log;
+        var playerSnapshot = (await ana.Hub.InvokeAsync<SnapshotResult>("GetSnapshot")).Log;
+        await dm.Log.WaitForAsync(entries => entries.EnumerateArray().Any(e => e.GetProperty("type").GetString() == "TempHpSet"));
+        var dmPushed = dm.Log.All.SelectMany(m => m.EnumerateArray()).ToList();
+        var playerPushed = ana.Log.All.SelectMany(m => m.EnumerateArray()).ToList();
+
+        foreach (var type in new[] { "Healed", "TempHpSet" })
+        {
+            dmSnapshot.Single(e => e.Type == type).Parameters.Should().ContainKey("amount");
+            playerSnapshot.Single(e => e.Type == type).Parameters.Should().NotContainKey("amount");
+            Pushed(dmPushed, type).TryGetProperty("amount", out _).Should().BeTrue();
+            Pushed(playerPushed, type).TryGetProperty("amount", out _).Should().BeFalse();
+        }
+
+        playerSnapshot.Single(e => e.Type == "DamageApplied").Parameters.Should().ContainKey("amount");
+        Pushed(playerPushed, "DamageApplied").TryGetProperty("amount", out _).Should().BeTrue();
+    }
+
+    private static JsonElement Pushed(IEnumerable<JsonElement> entries, string type) =>
+        entries.Single(e => e.GetProperty("type").GetString() == type).GetProperty("parameters");
+
+    [Fact]
     public async Task Unknown_condition_values_are_rejected()
     {
         var (dm, _) = await DmWithSessionAsync("Lyra");
