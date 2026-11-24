@@ -256,38 +256,30 @@ public sealed class CombatSession
     private Combatant? Current() => _combatants.SingleOrDefault(c => c.Id == CurrentTurnId);
 
     /// <summary>
-    /// Moves the turn to the next combatant that can act, skipping defeated ones and
-    /// <paramref name="excluded"/>. Increments the round when the order wraps.
+    /// Gives the turn to the first combatant in turn order that can act and has not begun a
+    /// turn this round, skipping defeated ones and <paramref name="excluded"/>. When everybody
+    /// has acted, a new round starts from the top of the order. Tracking turns per round instead
+    /// of a position in the order keeps initiative changes during combat from skipping or
+    /// repeating anyone's turn.
     /// </summary>
     private bool TryAdvance(Guid? excluded)
     {
-        var order = TurnOrder;
-        var index = order.ToList().FindIndex(c => c.Id == CurrentTurnId);
-        var wrapped = false;
-        for (var step = 1; step <= order.Count; step++)
+        var able = TurnOrder.Where(c => !c.IsDefeated && c.Id != excluded).ToList();
+        if (able.Count == 0)
         {
-            var raw = index + step;
-            if (raw >= order.Count)
-            {
-                wrapped = true;
-            }
-
-            var candidate = order[raw % order.Count];
-            if (candidate.IsDefeated || candidate.Id == excluded)
-            {
-                continue;
-            }
-
-            if (wrapped)
-            {
-                Round++;
-            }
-
-            CurrentTurnId = candidate.Id;
-            return true;
+            return false;
         }
 
-        return false;
+        var next = able.FirstOrDefault(c => c.LastTurnRound != Round);
+        if (next is null)
+        {
+            Round++;
+            next = able[0];
+        }
+
+        next.BeginTurn(Round);
+        CurrentTurnId = next.Id;
+        return true;
     }
 
     private void EnsureActive()
