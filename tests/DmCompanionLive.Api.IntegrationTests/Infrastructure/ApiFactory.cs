@@ -10,13 +10,7 @@ public sealed class ApiFactory(string connectionString) : WebApplicationFactory<
         builder.UseEnvironment("Testing");
         builder.UseSetting("ConnectionStrings:Postgres", connectionString);
         builder.UseSetting("Database:MigrateOnStartup", "false");
+        // All test requests share one (null) remote address: keep the join limit out of the way.
+        builder.UseSetting("RateLimiting:JoinPermitsPerMinute", "100000");
     }
-
-    /// <summary>HTTPS base address so the Secure auth cookie is sent back.</summary>
-    public HttpClient CreateHttpsClient() => CreateClient(new WebApplicationFactoryClientOptions
-    {
-        BaseAddress = new Uri("https://localhost"),
-        HandleCookies = true,
-        AllowAutoRedirect = false,
-    });
 }

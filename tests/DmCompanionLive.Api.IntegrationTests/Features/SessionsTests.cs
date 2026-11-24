@@ -1,7 +1,11 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using DmCompanionLive.Api.IntegrationTests.Infrastructure;
+using DmCompanionLive.Api.Features.Sessions;
 using DmCompanionLive.Domain.Combat;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DmCompanionLive.Api.IntegrationTests.Features;
 
@@ -11,6 +15,64 @@ public sealed class SessionsTests(PostgresFixture postgres)
     private sealed record TableDto(Guid Id, string Name);
 
     private sealed record SessionCreatedDto(Guid SessionId, string JoinCode);
+
+    [Theory]
+    [InlineData("ZZZZZ2")]
+    [InlineData("bad")]
+    public async Task Unknown_or_malformed_codes_are_not_found(string code)
+    {
+        var client = await postgres.Factory.CreateDmClientAsync();
+
+        (await client.GetAsync($"/api/sessions/{code}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task A_table_can_run_several_sessions()
+    {
+        var client = await postgres.Factory.CreateDmClientAsync();
+        var table = await CreateTableWithLyraAsync(client);
+
+        var first = await client.PostAsync($"/api/tables/{table.Id}/sessions", null);
+        var second = await client.PostAsync($"/api/tables/{table.Id}/sessions", null);
+
+        first.StatusCode.Should().Be(HttpStatusCode.Created);
+        second.StatusCode.Should().Be(HttpStatusCode.Created);
+        first.Headers.Location.Should().NotBe(second.Headers.Location);
+    }
+
+    [Fact]
+    public async Task A_join_code_collision_is_retried_with_a_new_code()
+    {
+        var codes = new QueuedCodes();
+        await using var factory = postgres.Factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services => services.AddSingleton<IJoinCodeGenerator>(codes)));
+        var client = await factory.CreateDmClientAsync();
+        var table = await CreateTableWithLyraAsync(client);
+        var taken = (await (await client.PostAsync($"/api/tables/{table.Id}/sessions", null))
+            .Content.ReadFromJsonAsync<SessionCreatedDto>(TestJson.Options))!.JoinCode;
+        var fresh = JoinCode.New();
+        codes.Enqueue(taken, fresh);
+
+        var response = await client.PostAsync($"/api/tables/{table.Id}/sessions", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        (await response.Content.ReadFromJsonAsync<SessionCreatedDto>(TestJson.Options))!.JoinCode.Should().Be(fresh);
+    }
+
+    private sealed class QueuedCodes : IJoinCodeGenerator
+    {
+        private readonly ConcurrentQueue<string> _codes = new();
+
+        public void Enqueue(params string[] codes)
+        {
+            foreach (var code in codes)
+            {
+                _codes.Enqueue(code);
+            }
+        }
+
+        public string New() => _codes.TryDequeue(out var code) ? code : JoinCode.New();
+    }
 
     [Fact]
     public async Task A_dm_starts_a_session_with_the_party_and_reads_it_by_code()

@@ -10,7 +10,7 @@ public static class DmPrincipal
         [
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.DisplayName),
-            new Claim("role", "dm"),
+            new Claim(AppClaims.Role, AppClaims.DmRole),
         ],
         CookieAuthenticationDefaults.AuthenticationScheme));
 
