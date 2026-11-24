@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using DmCompanionLive.Api.Auth;
 using DmCompanionLive.Api.Errors;
 using DmCompanionLive.Api.Features.Auth;
+using DmCompanionLive.Api.Features.Combat;
 using DmCompanionLive.Api.Features.Sessions;
 using DmCompanionLive.Api.Features.Tables;
 using DmCompanionLive.Infrastructure;
@@ -38,6 +39,15 @@ builder.Services.AddRateLimiter(options =>
         http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = joinPermits, Window = TimeSpan.FromMinutes(1) }));
 });
+builder.Services
+    .AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        // Same shapes as the REST API: enums as names, nulls in non-nullable members rejected.
+        options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.PayloadSerializerOptions.RespectNullableAnnotations = true;
+    });
+builder.Services.AddSingleton<SessionPresence>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
 var app = builder.Build();
@@ -67,6 +77,7 @@ app.MapAuth();
 app.MapTables();
 app.MapSessions();
 app.MapJoinSession();
+app.MapHub<CombatHub>("/hubs/combat");
 
 app.Run();
 
