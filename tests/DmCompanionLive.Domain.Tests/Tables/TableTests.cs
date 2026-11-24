@@ -47,6 +47,6 @@ public class TableTests
 
         emptyName.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.InvalidValue);
         badCharacter.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.InvalidValue);
-        unknown.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.CombatantNotFound);
+        unknown.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.CharacterNotFound);
     }
 }

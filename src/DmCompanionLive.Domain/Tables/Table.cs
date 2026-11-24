@@ -59,5 +59,5 @@ public sealed class Table
 
     private PlayerCharacter FindCharacter(Guid id) =>
         _characters.SingleOrDefault(c => c.Id == id)
-        ?? throw new DomainException(DomainErrorCode.CombatantNotFound, $"Character {id} not found.");
+        ?? throw new DomainException(DomainErrorCode.CharacterNotFound, $"Character {id} not found.");
 }

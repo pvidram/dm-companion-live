@@ -134,10 +134,13 @@ public sealed class TablesTests(PostgresFixture postgres)
             .Content.ReadFromJsonAsync<TableDto>(TestJson.Options))!;
         var unknown = Guid.NewGuid();
 
-        (await client.PutAsJsonAsync(
-                $"/api/tables/{table.Id}/characters/{unknown}", new { name = "Ghost", maxHp = 5, ac = 10, dexModifier = 0 }))
-            .StatusCode.Should().Be(HttpStatusCode.NotFound);
-        (await client.DeleteAsync($"/api/tables/{table.Id}/characters/{unknown}"))
-            .StatusCode.Should().Be(HttpStatusCode.NotFound);
+        var put = await client.PutAsJsonAsync(
+            $"/api/tables/{table.Id}/characters/{unknown}", new { name = "Ghost", maxHp = 5, ac = 10, dexModifier = 0 });
+        var delete = await client.DeleteAsync($"/api/tables/{table.Id}/characters/{unknown}");
+
+        put.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await put.Content.ReadAsStringAsync()).Should().Contain("\"code\":\"CharacterNotFound\"");
+        delete.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await delete.Content.ReadAsStringAsync()).Should().Contain("\"code\":\"CharacterNotFound\"");
     }
 }

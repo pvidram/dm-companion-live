@@ -8,6 +8,7 @@ public enum DomainErrorCode
     SessionNotActive,
     InvalidState,
     CombatantNotFound,
+    CharacterNotFound,
     AlreadyClaimed,
     AlreadyHasCharacter,
     InvalidValue,
