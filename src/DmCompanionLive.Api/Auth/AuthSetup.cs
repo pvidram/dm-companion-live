@@ -15,7 +15,8 @@ public static class AuthSetup
     public const string CombatPolicy = "CombatParticipant";
 
     public static bool IsGoogleConfigured(IConfiguration configuration) =>
-        !string.IsNullOrEmpty(configuration["Authentication:Google:ClientId"]);
+        !string.IsNullOrEmpty(configuration["Authentication:Google:ClientId"])
+        && !string.IsNullOrEmpty(configuration["Authentication:Google:ClientSecret"]);
 
     public static IServiceCollection AddDmAuthentication(
         this IServiceCollection services, IHostEnvironment environment, IConfiguration configuration)
