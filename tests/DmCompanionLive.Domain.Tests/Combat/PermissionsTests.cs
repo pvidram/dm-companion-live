@@ -54,7 +54,7 @@ public class PermissionsTests
 
         var act = () => session.Claim(Guest(), goblin, Now);
 
-        act.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.NotAllowed);
+        act.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.CharacterNotFound);
     }
 
     [Fact]
@@ -103,5 +103,61 @@ public class PermissionsTests
         var act = () => session.Start(Guest(), Now);
 
         act.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.NotAllowed);
+    }
+
+    [Fact]
+    public void Errors_never_tell_a_guest_whether_a_hidden_combatant_exists()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15));
+        var hidden = session.AddMonster(Dm, new MonsterSeed("Assassin", 30, 15, IsHidden: true), Now);
+        var player = Guest();
+
+        var onHidden = () => session.ApplyDamage(player, hidden, 1, Now);
+        var onMissing = () => session.ApplyDamage(player, Guid.NewGuid(), 1, Now);
+        var claimHidden = () => session.Claim(player, hidden, Now);
+        var claimMissing = () => session.Claim(player, Guid.NewGuid(), Now);
+
+        onHidden.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.NotYourCharacter);
+        onMissing.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.NotYourCharacter);
+        claimHidden.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.CharacterNotFound);
+        claimMissing.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.CharacterNotFound);
+    }
+
+    [Fact]
+    public void Guests_cannot_run_any_dm_command()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15));
+        var lyra = session.Combatants.Single().Id;
+        var player = Guest();
+        session.Claim(player, lyra, Now);
+        session.Start(Dm, Now);
+
+        var commands = new Dictionary<string, Action>
+        {
+            ["AddMonster"] = () => session.AddMonster(player, new MonsterSeed("Goblin", 7, 15), Now),
+            ["RollMonsterInitiative"] = () => session.RollMonsterInitiative(player, new FixedDice(10), Now),
+            ["Start"] = () => session.Start(player, Now),
+            ["NextTurn"] = () => session.NextTurn(player, Now),
+            ["Reveal"] = () => session.Reveal(player, lyra, Now),
+            ["Remove"] = () => session.Remove(player, lyra, Now),
+            ["End"] = () => session.End(player, Now),
+        };
+
+        foreach (var (name, command) in commands)
+        {
+            command.Should().Throw<DomainException>(name).Which.Code.Should().Be(DomainErrorCode.NotAllowed, name);
+        }
+    }
+
+    [Fact]
+    public void Undefined_condition_values_are_rejected()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15));
+        var lyra = session.Combatants.Single().Id;
+
+        var act = () => session.SetConditions(Dm, lyra, (Condition)(1 << 15), Now);
+
+        act.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.InvalidValue);
+        ConditionSet.All.Should().Be(Enum.GetValues<Condition>().Aggregate((all, c) => all | c));
     }
 }

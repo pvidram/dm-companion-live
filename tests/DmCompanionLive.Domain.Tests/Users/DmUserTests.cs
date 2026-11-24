@@ -24,4 +24,32 @@ public class DmUserTests
 
         act.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.InvalidValue);
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("google")]
+    [InlineData(":123")]
+    [InlineData("google:")]
+    public void Rejects_an_external_id_that_is_not_provider_colon_subject(string externalId)
+    {
+        var act = () => DmUser.Create(externalId, "Ana", Now);
+
+        act.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.InvalidValue);
+    }
+
+    [Fact]
+    public void Rejects_an_overlong_external_id()
+    {
+        var act = () => DmUser.Create("google:" + new string('1', DmUser.MaxExternalIdLength), "Ana", Now);
+
+        act.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.InvalidValue);
+    }
+
+    [Fact]
+    public void Creation_time_is_stored_in_utc()
+    {
+        var local = new DateTimeOffset(2026, 11, 24, 19, 0, 0, TimeSpan.FromHours(1));
+
+        DmUser.Create("dev:ana", "Ana", local).CreatedAt.Offset.Should().Be(TimeSpan.Zero);
+    }
 }

@@ -46,6 +46,10 @@ public sealed record PlayerCombatantView(
     bool IsClaimed,
     bool IsMine);
 
+/// <remarks>
+/// <see cref="Version"/> also moves when the DM changes hidden combatants. Players need it as the
+/// <c>expectedVersion</c> of their commands; it reveals that something happened, never what.
+/// </remarks>
 public sealed record PlayerView(
     Guid SessionId,
     SessionStatus Status,

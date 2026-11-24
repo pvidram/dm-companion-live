@@ -21,4 +21,16 @@ public class JoinCodeTests
     [Fact]
     public void Normalize_trims_and_uppercases() =>
         JoinCode.Normalize("  abc234 ").Should().Be("ABC234");
+
+    [Theory]
+    [InlineData(" abc234 ", true, "ABC234")]
+    [InlineData(null, false, "")]
+    [InlineData("ABC23", false, "ABC23")]
+    [InlineData("ABC2345", false, "ABC2345")]
+    [InlineData("ABCO23", false, "ABCO23")]
+    public void Try_normalize_accepts_only_well_formed_codes(string? input, bool valid, string normalized)
+    {
+        JoinCode.TryNormalize(input, out var code).Should().Be(valid);
+        code.Should().Be(normalized);
+    }
 }
