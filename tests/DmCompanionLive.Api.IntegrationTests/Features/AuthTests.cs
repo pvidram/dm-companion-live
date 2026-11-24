@@ -11,6 +11,19 @@ public sealed class AuthTests(PostgresFixture postgres)
 {
     private sealed record Me(Guid Id, string DisplayName);
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"displayName\":null}")]
+    public async Task Dev_login_without_a_name_is_a_bad_request(string body)
+    {
+        var client = postgres.Factory.CreateHttpsClient();
+
+        var response = await client.PostAsync(
+            "/dev/login", new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     [Fact]
     public async Task Anonymous_callers_get_401_from_me()
     {

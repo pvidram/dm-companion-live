@@ -19,7 +19,13 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<DomainExceptionHandler>();
 builder.Services.ConfigureHttpJsonOptions(options =>
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    // A null or missing value for a non-nullable member is a 400, never a NullReferenceException (500).
+    options.SerializerOptions.RespectNullableAnnotations = true;
+    options.SerializerOptions.RespectRequiredConstructorParameters = true;
+});
+builder.Services.AddSingleton<IJoinCodeGenerator, RandomJoinCodeGenerator>();
 builder.Services.AddOpenApi();
 builder.Services.AddDmAuthentication(builder.Environment);
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");

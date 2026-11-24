@@ -36,7 +36,7 @@ public static class AuthSetup
             options.AddPolicy(DmPolicy, policy => policy
                 .AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme)
                 .RequireAuthenticatedUser()
-                .RequireClaim("role", "dm")));
+                .RequireClaim(AppClaims.Role, AppClaims.DmRole)));
         return services;
     }
 }
