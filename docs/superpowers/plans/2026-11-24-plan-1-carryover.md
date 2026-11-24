@@ -9,6 +9,15 @@ Findings from the Plan 1 reviews that were deliberately deferred. Each later pla
 - Hub connections with the DM cookie rely on `SameSite=Lax` against cross-site use; revisit together with the antiforgery decision (Plan 4).
 - Guest names are free text shown to the DM and other players: the SPA must render them as text (Plan 4).
 - Clients must ignore snapshots and log batches older than the version they already hold (broadcasts after commit are not ordered) and de-duplicate log entries by `version` (the snapshot reads the session and the log tail in two queries) (Plan 4).
+- A DM `ReleaseClaim` command: a lost guest token (expiry, key loss, cleared storage) leaves the PC claimed by a guest who can never come back (Plan 4).
+- Open hub connections are not re-checked after guest-token expiry, DM user deletion or session end: use `CloseOnAuthenticationExpiration` and a client reconnect policy (Plan 4).
+- A DM re-`Join` on the same connection keeps the previous session's DM group: leave the old groups or reject a second session (Plan 4).
+- A broadcast failure after commit reaches the caller as a hub error although the command was saved; the client must treat hub errors as "re-fetch the snapshot" (Plan 4).
+- Null `MonsterInput`/conditions arguments surface as a generic hub error instead of `InvalidValue`; revisit when AddMonster inputs change with SRD monsters (Plan 3).
+- Test (and document as intended) that a combatant added mid-round with a higher initiative than the current one acts next (Plan 3).
+- Concurrent first Google sign-in of the same account hits the unique index (23505 gives a 500): retry the lookup on conflict. Assert that `returnUrl` round-trips through the real OAuth flow (Plan 5).
+- Throttle hub commands per connection: an idempotent `Claim` re-broadcasts to everyone (Plan 5).
+- `DmUsers.DisplayNameFrom` may split a surrogate pair when truncating; rename `GuestTokenHandler.Scheme` to `SchemeName` (it hides the base `Scheme` property); remove `JoinCode.Normalize` (only tests use it) (opportunistic).
 
 ## Plan 4 (frontend)
 - Assert the ProblemDetails body (`code`) in invalid-input tests; test a blank rename.
