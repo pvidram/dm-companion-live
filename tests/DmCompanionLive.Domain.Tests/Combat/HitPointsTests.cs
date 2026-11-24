@@ -108,4 +108,18 @@ public class HitPointsTests
         session.ClearUncommittedEvents();
         session.UncommittedEvents.Should().BeEmpty();
     }
+
+    [Fact]
+    public void Temporary_hp_cannot_be_negative_and_replaces_rather_than_stacks()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15));
+        var lyra = session.Combatants.Single().Id;
+
+        var negative = () => session.SetTempHp(Dm, lyra, -1, Now);
+        session.SetTempHp(Dm, lyra, 5, Now);
+        session.SetTempHp(Dm, lyra, 3, Now);
+
+        negative.Should().Throw<DomainException>().Which.Code.Should().Be(DomainErrorCode.InvalidValue);
+        session.Combatants.Single().TempHp.Should().Be(3);
+    }
 }

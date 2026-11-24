@@ -4,6 +4,7 @@ namespace DmCompanionLive.Domain.Users;
 public sealed class DmUser
 {
     public const int MaxDisplayNameLength = 80;
+    public const int MaxExternalIdLength = 200;
 
     private DmUser()
     {
@@ -18,6 +19,13 @@ public sealed class DmUser
 
     public static DmUser Create(string externalId, string displayName, DateTimeOffset now)
     {
+        var colon = externalId.IndexOf(':');
+        if (colon <= 0 || colon == externalId.Length - 1 || externalId.Length > MaxExternalIdLength)
+        {
+            throw new DomainException(
+                DomainErrorCode.InvalidValue, $"External id must look like 'provider:subject' (max {MaxExternalIdLength}).");
+        }
+
         if (string.IsNullOrWhiteSpace(displayName) || displayName.Trim().Length > MaxDisplayNameLength)
         {
             throw new DomainException(
@@ -29,7 +37,7 @@ public sealed class DmUser
             Id = Guid.NewGuid(),
             ExternalId = externalId,
             DisplayName = displayName.Trim(),
-            CreatedAt = now,
+            CreatedAt = now.ToUniversalTime(),
         };
     }
 }

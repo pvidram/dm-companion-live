@@ -22,7 +22,7 @@ public sealed class Table
 
     public static Table Create(Guid ownerId, string name, DateTimeOffset now)
     {
-        var table = new Table { Id = Guid.NewGuid(), OwnerId = ownerId, CreatedAt = now };
+        var table = new Table { Id = Guid.NewGuid(), OwnerId = ownerId, CreatedAt = now.ToUniversalTime() };
         table.Rename(name);
         return table;
     }

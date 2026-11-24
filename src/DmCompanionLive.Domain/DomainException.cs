@@ -13,6 +13,8 @@ public enum DomainErrorCode
     AlreadyHasCharacter,
     InvalidValue,
     NoCombatants,
+    SessionExpired,
+    Conflict,
 }
 
 public sealed class DomainException(DomainErrorCode code, string message) : Exception(message)

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Globalization;
 
 namespace DmCompanionLive.Domain.Combat;
@@ -5,6 +6,9 @@ namespace DmCompanionLive.Domain.Combat;
 /// <summary>Aggregate root of a live combat. Every rule of the combat lives here.</summary>
 public sealed class CombatSession
 {
+    /// <summary>A session nobody touches for this long expires and accepts no more commands.</summary>
+    public static readonly TimeSpan InactivityLimit = TimeSpan.FromHours(12);
+
     private readonly List<Combatant> _combatants = [];
     private readonly List<CombatEvent> _uncommittedEvents = [];
 
@@ -44,7 +48,7 @@ public sealed class CombatSession
             OwnerId = ownerId,
             JoinCode = joinCode,
             Status = SessionStatus.Lobby,
-            LastActivityAt = now,
+            LastActivityAt = now.ToUniversalTime(),
         };
 
         foreach (var character in characters)
@@ -55,9 +59,13 @@ public sealed class CombatSession
         return session;
     }
 
+    /// <summary>True when the session is not ended and nobody has acted for longer than <see cref="InactivityLimit"/>.</summary>
+    public bool IsExpiredAt(DateTimeOffset now) =>
+        Status != SessionStatus.Ended && now - LastActivityAt > InactivityLimit;
+
     public Guid AddMonster(Actor actor, MonsterSeed seed, DateTimeOffset now)
     {
-        EnsureNotEnded();
+        EnsureOpen(now);
         EnsureDm(actor);
         var monster = Combatant.CreateMonster(seed, NextSortOrder());
         _combatants.Add(monster);
@@ -67,7 +75,7 @@ public sealed class CombatSession
 
     public void ApplyDamage(Actor actor, Guid combatantId, int amount, DateTimeOffset now)
     {
-        var target = Controllable(actor, combatantId);
+        var target = Controllable(actor, combatantId, now);
         EnsurePositive(amount);
         target.TakeDamage(amount);
         Record(actor, now, "DamageApplied", target, ("amount", amount));
@@ -75,7 +83,7 @@ public sealed class CombatSession
 
     public void Heal(Actor actor, Guid combatantId, int amount, DateTimeOffset now)
     {
-        var target = Controllable(actor, combatantId);
+        var target = Controllable(actor, combatantId, now);
         EnsurePositive(amount);
         target.Heal(amount);
         Record(actor, now, "Healed", target, ("amount", amount));
@@ -83,7 +91,7 @@ public sealed class CombatSession
 
     public void SetTempHp(Actor actor, Guid combatantId, int amount, DateTimeOffset now)
     {
-        var target = Controllable(actor, combatantId);
+        var target = Controllable(actor, combatantId, now);
         if (amount < 0)
         {
             throw new DomainException(DomainErrorCode.InvalidValue, "Temporary HP cannot be negative.");
@@ -95,14 +103,14 @@ public sealed class CombatSession
 
     public void SetInitiative(Actor actor, Guid combatantId, int value, DateTimeOffset now)
     {
-        var target = Controllable(actor, combatantId);
+        var target = Controllable(actor, combatantId, now);
         target.SetInitiative(value);
         Record(actor, now, "InitiativeSet", target, ("value", value));
     }
 
     public void RollMonsterInitiative(Actor actor, IDiceRoller dice, DateTimeOffset now)
     {
-        EnsureNotEnded();
+        EnsureOpen(now);
         EnsureDm(actor);
         foreach (var monster in _combatants.Where(c => c.Kind == CombatantKind.Monster && c.Initiative is null))
         {
@@ -114,7 +122,7 @@ public sealed class CombatSession
 
     public void Start(Actor actor, DateTimeOffset now)
     {
-        EnsureNotEnded();
+        EnsureOpen(now);
         EnsureDm(actor);
         if (Status != SessionStatus.Lobby)
         {
@@ -135,7 +143,7 @@ public sealed class CombatSession
 
     public void NextTurn(Actor actor, DateTimeOffset now)
     {
-        EnsureActive();
+        EnsureActive(now);
         EnsureDm(actor);
         if (!TryAdvance(excluded: null))
         {
@@ -147,17 +155,15 @@ public sealed class CombatSession
 
     public void Claim(Actor actor, Guid combatantId, DateTimeOffset now)
     {
-        EnsureNotEnded();
+        EnsureOpen(now);
         if (actor is not Actor.Guest guest)
         {
             throw new DomainException(DomainErrorCode.NotAllowed, "Only players claim characters.");
         }
 
-        var character = Find(combatantId);
-        if (character.Kind != CombatantKind.Pc)
-        {
-            throw new DomainException(DomainErrorCode.NotAllowed, "Only player characters can be claimed.");
-        }
+        // Monsters, hidden or not, answer exactly like unknown ids: a player learns nothing about them.
+        var character = _combatants.SingleOrDefault(c => c.Id == combatantId && c.Kind == CombatantKind.Pc)
+            ?? throw new DomainException(DomainErrorCode.CharacterNotFound, "There is no player character with that id.");
 
         if (character.ClaimedBy == guest.GuestId)
         {
@@ -180,14 +186,19 @@ public sealed class CombatSession
 
     public void SetConditions(Actor actor, Guid combatantId, Condition conditions, DateTimeOffset now)
     {
-        var target = Controllable(actor, combatantId);
+        var target = Controllable(actor, combatantId, now);
+        if (!ConditionSet.IsValid(conditions))
+        {
+            throw new DomainException(DomainErrorCode.InvalidValue, "Unknown condition.");
+        }
+
         target.SetConditions(conditions);
         Record(actor, now, "ConditionsSet", target, ("conditions", conditions));
     }
 
     public void Reveal(Actor actor, Guid combatantId, DateTimeOffset now)
     {
-        EnsureNotEnded();
+        EnsureOpen(now);
         EnsureDm(actor);
         var target = Find(combatantId);
         target.Reveal();
@@ -196,7 +207,7 @@ public sealed class CombatSession
 
     public void Remove(Actor actor, Guid combatantId, DateTimeOffset now)
     {
-        EnsureNotEnded();
+        EnsureOpen(now);
         EnsureDm(actor);
         var target = Find(combatantId);
         if (Status == SessionStatus.Active && CurrentTurnId == target.Id && !TryAdvance(excluded: target.Id))
@@ -210,7 +221,7 @@ public sealed class CombatSession
 
     public void End(Actor actor, DateTimeOffset now)
     {
-        EnsureNotEnded();
+        EnsureOpen(now);
         EnsureDm(actor);
         Status = SessionStatus.Ended;
         CurrentTurnId = null;
@@ -219,16 +230,19 @@ public sealed class CombatSession
 
     public void ClearUncommittedEvents() => _uncommittedEvents.Clear();
 
-    private Combatant Controllable(Actor actor, Guid combatantId)
+    /// <summary>
+    /// The combatant <paramref name="actor"/> may change. Guests are authorized before the lookup,
+    /// so an error never tells them whether a (hidden) id exists.
+    /// </summary>
+    private Combatant Controllable(Actor actor, Guid combatantId, DateTimeOffset now)
     {
-        EnsureNotEnded();
-        var combatant = Find(combatantId);
+        EnsureOpen(now);
         return actor switch
         {
-            Actor.Dm dm when dm.UserId == OwnerId => combatant,
-            Actor.Guest guest when combatant.ClaimedBy == guest.GuestId => combatant,
-            Actor.Guest => throw new DomainException(
-                DomainErrorCode.NotYourCharacter, "You can only act on your own character."),
+            Actor.Dm dm when dm.UserId == OwnerId => Find(combatantId),
+            Actor.Guest guest => _combatants.SingleOrDefault(c => c.Id == combatantId && c.ClaimedBy == guest.GuestId)
+                ?? throw new DomainException(
+                    DomainErrorCode.NotYourCharacter, "You can only act on your own character."),
             _ => throw NotAllowed(),
         };
     }
@@ -245,11 +259,26 @@ public sealed class CombatSession
         }
     }
 
-    private void EnsureNotEnded()
+    private void EnsureOpen(DateTimeOffset now)
     {
         if (Status == SessionStatus.Ended)
         {
             throw new DomainException(DomainErrorCode.SessionEnded, "The combat has ended.");
+        }
+
+        if (IsExpiredAt(now))
+        {
+            throw new DomainException(
+                DomainErrorCode.SessionExpired, "The combat expired after 12 hours without activity.");
+        }
+    }
+
+    private void EnsureActive(DateTimeOffset now)
+    {
+        EnsureOpen(now);
+        if (Status != SessionStatus.Active)
+        {
+            throw new DomainException(DomainErrorCode.SessionNotActive, "The combat has not started.");
         }
     }
 
@@ -282,15 +311,6 @@ public sealed class CombatSession
         return true;
     }
 
-    private void EnsureActive()
-    {
-        EnsureNotEnded();
-        if (Status != SessionStatus.Active)
-        {
-            throw new DomainException(DomainErrorCode.SessionNotActive, "The combat has not started.");
-        }
-    }
-
     private static void EnsurePositive(int amount)
     {
         if (amount <= 0)
@@ -311,8 +331,9 @@ public sealed class CombatSession
         Combatant? subject = null,
         params (string Key, object Value)[] data)
     {
+        var at = now.ToUniversalTime();
         Version++;
-        LastActivityAt = now;
+        LastActivityAt = at;
 
         var parameters = new Dictionary<string, string>();
         if (subject is not null)
@@ -326,7 +347,13 @@ public sealed class CombatSession
             parameters[key] = Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
         }
 
-        _uncommittedEvents.Add(new CombatEvent(Version, now, ActorName(actor), type, parameters));
+        _uncommittedEvents.Add(new CombatEvent(
+            Version,
+            at,
+            ActorName(actor),
+            type,
+            parameters.ToImmutableDictionary(),
+            VisibleToPlayers: subject is null || !subject.IsHidden));
     }
 
     private static string ActorName(Actor actor) => actor is Actor.Guest guest ? guest.Name : "DM";

@@ -11,5 +11,12 @@ public static class JoinCode
 
     public static string New() => RandomNumberGenerator.GetString(Alphabet, Length);
 
+    /// <summary>Normalizes <paramref name="input"/> and tells whether it can be a join code at all.</summary>
+    public static bool TryNormalize(string? input, out string code)
+    {
+        code = (input ?? string.Empty).Trim().ToUpperInvariant();
+        return code.Length == Length && code.All(Alphabet.Contains);
+    }
+
     public static string Normalize(string input) => input.Trim().ToUpperInvariant();
 }

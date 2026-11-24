@@ -21,3 +21,12 @@ public enum Condition
     Stunned = 1 << 13,
     Unconscious = 1 << 14,
 }
+
+public static class ConditionSet
+{
+    /// <summary>Every defined condition flag.</summary>
+    public const Condition All = (Condition)((1 << 15) - 1);
+
+    /// <summary>False when <paramref name="conditions"/> carries bits that are not a defined condition.</summary>
+    public static bool IsValid(Condition conditions) => (conditions & ~All) == 0;
+}
