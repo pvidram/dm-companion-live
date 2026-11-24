@@ -17,7 +17,7 @@ public sealed record DmCombatantView(
     int CurrentHp,
     int TempHp,
     int Ac,
-    Condition Conditions,
+    IReadOnlyList<Condition> Conditions,
     bool IsHidden,
     bool IsDefeated,
     Guid? ClaimedBy,
@@ -41,7 +41,7 @@ public sealed record PlayerCombatantView(
     int? CurrentHp,
     int? TempHp,
     HpBand? Band,
-    Condition Conditions,
+    IReadOnlyList<Condition> Conditions,
     bool IsDefeated,
     bool IsClaimed,
     bool IsMine);
@@ -69,7 +69,7 @@ public static class CombatViews
         session.Version,
         session.TurnOrder.Select(c => new DmCombatantView(
             c.Id, c.Kind, c.Name, c.Initiative, c.MaxHp, c.CurrentHp, c.TempHp, c.Ac,
-            c.Conditions, c.IsHidden, c.IsDefeated, c.ClaimedBy, c.SourceRef)).ToList());
+            ExpandConditions(c.Conditions), c.IsHidden, c.IsDefeated, c.ClaimedBy, c.SourceRef)).ToList());
 
     public static PlayerView ForPlayer(CombatSession session, Guid? guestId)
     {
@@ -92,6 +92,9 @@ public static class CombatViews
         _ => HpBand.Bloodied,
     };
 
+    private static IReadOnlyList<Condition> ExpandConditions(Condition conditions) =>
+        Enum.GetValues<Condition>().Where(f => f != Condition.None && conditions.HasFlag(f)).ToList();
+
     private static PlayerCombatantView ToPlayer(Combatant c, Guid? guestId)
     {
         var isPc = c.Kind == CombatantKind.Pc;
@@ -104,7 +107,7 @@ public static class CombatViews
             isPc ? c.CurrentHp : null,
             isPc ? c.TempHp : null,
             isPc ? null : BandFor(c.CurrentHp, c.MaxHp),
-            c.Conditions,
+            ExpandConditions(c.Conditions),
             c.IsDefeated,
             c.ClaimedBy is not null,
             guestId is not null && c.ClaimedBy == guestId);

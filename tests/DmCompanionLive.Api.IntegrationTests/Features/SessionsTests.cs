@@ -33,6 +33,22 @@ public sealed class SessionsTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Conditions_travel_as_a_json_array_of_strings()
+    {
+        var client = await postgres.Factory.CreateDmClientAsync();
+        var table = await CreateTableWithLyraAsync(client);
+        var created = (await (await client.PostAsync($"/api/tables/{table.Id}/sessions", null))
+            .Content.ReadFromJsonAsync<SessionCreatedDto>(TestJson.Options))!;
+
+        var json = await client.GetStringAsync($"/api/sessions/{created.JoinCode}");
+
+        var conditions = System.Text.Json.JsonDocument.Parse(json).RootElement
+            .GetProperty("combatants")[0].GetProperty("conditions");
+        conditions.ValueKind.Should().Be(System.Text.Json.JsonValueKind.Array);
+        conditions.GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
     public async Task Other_dms_cannot_start_or_read_my_sessions()
     {
         var owner = await postgres.Factory.CreateDmClientAsync();

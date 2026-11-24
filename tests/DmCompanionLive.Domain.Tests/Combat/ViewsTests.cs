@@ -71,4 +71,25 @@ public class ViewsTests
         view.Combatants.Select(c => c.Name).Should().Equal("Assassin", "Lyra");
         view.Combatants[0].Should().BeEquivalentTo(new { CurrentHp = 30, MaxHp = 30, Ac = 16, IsHidden = true });
     }
+
+    [Fact]
+    public void Conditions_are_exposed_as_a_list_of_set_flags_in_declaration_order()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15));
+        var lyra = session.Combatants.Single().Id;
+        session.SetConditions(Dm, lyra, Condition.Prone | Condition.Poisoned, Now);
+
+        CombatViews.ForDm(session).Combatants.Single().Conditions
+            .Should().Equal(Condition.Poisoned, Condition.Prone);
+        CombatViews.ForPlayer(session, guestId: null).Combatants.Single().Conditions
+            .Should().Equal(Condition.Poisoned, Condition.Prone);
+    }
+
+    [Fact]
+    public void No_conditions_is_an_empty_list()
+    {
+        var session = NewSession(new PcSeed("Lyra", 20, 15));
+
+        CombatViews.ForDm(session).Combatants.Single().Conditions.Should().BeEmpty();
+    }
 }
