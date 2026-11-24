@@ -1,11 +1,10 @@
 using System.Security.Claims;
 using DmCompanionLive.Api.Auth;
-using DmCompanionLive.Domain.Users;
 using DmCompanionLive.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.EntityFrameworkCore;
 
 namespace DmCompanionLive.Api.Features.Auth;
 
@@ -15,11 +14,16 @@ public static class AuthEndpoints
 
     public sealed record MeResponse(Guid Id, string DisplayName);
 
-    public static IEndpointRouteBuilder MapAuth(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapAuth(this IEndpointRouteBuilder app, bool googleEnabled)
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
         group.MapGet("/me", Me).RequireAuthorization(AuthSetup.DmPolicy);
         group.MapPost("/logout", (Delegate)Logout).RequireAuthorization(AuthSetup.DmPolicy);
+        if (googleEnabled)
+        {
+            group.MapGet("/google/login", GoogleLogin);
+        }
+
         return app;
     }
 
@@ -30,18 +34,23 @@ public static class AuthEndpoints
         return app;
     }
 
+    /// <summary>Keeps <paramref name="returnUrl"/> only if it stays on this site (no open redirect).</summary>
+    public static string SafeReturnUrl(string? returnUrl) =>
+        returnUrl is { Length: > 0 } url && url[0] == '/' && !url.StartsWith("//", StringComparison.Ordinal)
+            && !url.StartsWith("/\\", StringComparison.Ordinal)
+            ? url
+            : "/";
+
+    private static ChallengeHttpResult GoogleLogin(string? returnUrl) =>
+        TypedResults.Challenge(
+            new AuthenticationProperties { RedirectUri = SafeReturnUrl(returnUrl) },
+            [GoogleDefaults.AuthenticationScheme]);
+
     private static async Task<Ok<MeResponse>> DevLogin(
         DevLoginRequest request, AppDbContext db, TimeProvider clock, HttpContext http, CancellationToken ct)
     {
-        var externalId = $"dev:{request.DisplayName.Trim().ToLowerInvariant()}";
-        var user = await db.Users.SingleOrDefaultAsync(u => u.ExternalId == externalId, ct);
-        if (user is null)
-        {
-            user = DmUser.Create(externalId, request.DisplayName, clock.GetUtcNow());
-            db.Users.Add(user);
-            await db.SaveChangesAsync(ct);
-        }
-
+        var user = await DmUsers.FindOrCreateAsync(
+            db, $"dev:{request.DisplayName.Trim().ToLowerInvariant()}", request.DisplayName, clock.GetUtcNow(), ct);
         await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, DmPrincipal.Create(user));
         return TypedResults.Ok(new MeResponse(user.Id, user.DisplayName));
     }

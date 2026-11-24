@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using DmCompanionLive.Api.IntegrationTests.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 
 namespace DmCompanionLive.Api.IntegrationTests.Features;
 
@@ -10,6 +11,20 @@ namespace DmCompanionLive.Api.IntegrationTests.Features;
 public sealed class AuthTests(PostgresFixture postgres)
 {
     private sealed record Me(Guid Id, string DisplayName);
+
+    [Fact]
+    public async Task The_cookie_of_a_deleted_user_stops_working()
+    {
+        var dm = await postgres.Factory.CreateDmAsync();
+        var me = (await dm.Http.GetFromJsonAsync<Me>("/api/auth/me", TestJson.Options))!;
+        await using (var db = postgres.CreateDbContext())
+        {
+            db.Users.Remove(await db.Users.SingleAsync(u => u.Id == me.Id));
+            await db.SaveChangesAsync();
+        }
+
+        (await dm.Http.GetAsync("/api/auth/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
 
     [Theory]
     [InlineData("{}")]

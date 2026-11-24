@@ -30,7 +30,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.AddSingleton<IJoinCodeGenerator, RandomJoinCodeGenerator>();
 builder.Services.AddOpenApi();
-builder.Services.AddDmAuthentication(builder.Environment);
+builder.Services.AddDmAuthentication(builder.Environment, builder.Configuration);
 var joinPermits = builder.Configuration.GetValue("RateLimiting:JoinPermitsPerMinute", 10);
 builder.Services.AddRateLimiter(options =>
 {
@@ -77,7 +77,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
     app.MapDevLogin();
 }
 
-app.MapAuth();
+app.MapAuth(AuthSetup.IsGoogleConfigured(app.Configuration));
 app.MapTables();
 app.MapSessions();
 app.MapJoinSession();
