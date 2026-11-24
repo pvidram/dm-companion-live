@@ -24,6 +24,11 @@ public sealed class CombatSession
     public DateTimeOffset LastActivityAt { get; private set; }
     public IReadOnlyList<Combatant> Combatants => _combatants;
     public IReadOnlyList<CombatEvent> UncommittedEvents => _uncommittedEvents;
+    public IReadOnlyList<Combatant> TurnOrder => _combatants
+        .OrderByDescending(c => c.Initiative ?? int.MinValue)
+        .ThenByDescending(c => c.DexModifier)
+        .ThenBy(c => c.SortOrder)
+        .ToList();
 
     public static CombatSession Create(
         Guid tableId,
@@ -88,6 +93,58 @@ public sealed class CombatSession
         Record(actor, now, "TempHpSet", target, ("amount", amount));
     }
 
+    public void SetInitiative(Actor actor, Guid combatantId, int value, DateTimeOffset now)
+    {
+        var target = Controllable(actor, combatantId);
+        target.SetInitiative(value);
+        Record(actor, now, "InitiativeSet", target, ("value", value));
+    }
+
+    public void RollMonsterInitiative(Actor actor, IDiceRoller dice, DateTimeOffset now)
+    {
+        EnsureNotEnded();
+        EnsureDm(actor);
+        foreach (var monster in _combatants.Where(c => c.Kind == CombatantKind.Monster && c.Initiative is null))
+        {
+            monster.SetInitiative(dice.D20() + monster.DexModifier);
+        }
+
+        Record(actor, now, "MonsterInitiativeRolled");
+    }
+
+    public void Start(Actor actor, DateTimeOffset now)
+    {
+        EnsureNotEnded();
+        EnsureDm(actor);
+        if (Status != SessionStatus.Lobby)
+        {
+            throw new DomainException(DomainErrorCode.InvalidState, "The combat has already started.");
+        }
+
+        if (!_combatants.Any(c => !c.IsDefeated))
+        {
+            throw new DomainException(DomainErrorCode.NoCombatants, "Nobody can act in this combat.");
+        }
+
+        Status = SessionStatus.Active;
+        Round = 1;
+        CurrentTurnId = null;
+        TryAdvance(excluded: null);
+        Record(actor, now, "CombatStarted", Current());
+    }
+
+    public void NextTurn(Actor actor, DateTimeOffset now)
+    {
+        EnsureActive();
+        EnsureDm(actor);
+        if (!TryAdvance(excluded: null))
+        {
+            throw new DomainException(DomainErrorCode.NoCombatants, "Nobody can act in this combat.");
+        }
+
+        Record(actor, now, "TurnAdvanced", Current(), ("round", Round));
+    }
+
     public void ClearUncommittedEvents() => _uncommittedEvents.Clear();
 
     private Combatant Controllable(Actor actor, Guid combatantId)
@@ -121,6 +178,52 @@ public sealed class CombatSession
         if (Status == SessionStatus.Ended)
         {
             throw new DomainException(DomainErrorCode.SessionEnded, "The combat has ended.");
+        }
+    }
+
+    private Combatant? Current() => _combatants.SingleOrDefault(c => c.Id == CurrentTurnId);
+
+    /// <summary>
+    /// Moves the turn to the next combatant that can act, skipping defeated ones and
+    /// <paramref name="excluded"/>. Increments the round when the order wraps.
+    /// </summary>
+    private bool TryAdvance(Guid? excluded)
+    {
+        var order = TurnOrder;
+        var index = order.ToList().FindIndex(c => c.Id == CurrentTurnId);
+        var wrapped = false;
+        for (var step = 1; step <= order.Count; step++)
+        {
+            var raw = index + step;
+            if (raw >= order.Count)
+            {
+                wrapped = true;
+            }
+
+            var candidate = order[raw % order.Count];
+            if (candidate.IsDefeated || candidate.Id == excluded)
+            {
+                continue;
+            }
+
+            if (wrapped)
+            {
+                Round++;
+            }
+
+            CurrentTurnId = candidate.Id;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void EnsureActive()
+    {
+        EnsureNotEnded();
+        if (Status != SessionStatus.Active)
+        {
+            throw new DomainException(DomainErrorCode.SessionNotActive, "The combat has not started.");
         }
     }
 
