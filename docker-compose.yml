@@ -1,0 +1,19 @@
+# Local development only. These credentials never leave this machine.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: dmcompanionlive
+      POSTGRES_USER: dmcl
+      POSTGRES_PASSWORD: dmcl
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dmcl -d dmcompanionlive"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  db-data:
