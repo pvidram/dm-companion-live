@@ -13,8 +13,8 @@ public static class SessionsEndpoints
 
     public static IEndpointRouteBuilder MapSessions(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/tables/{tableId:guid}/sessions", Create).RequireAuthorization().WithTags("Sessions");
-        app.MapGet("/api/sessions/{code}", GetDmView).RequireAuthorization().WithTags("Sessions");
+        app.MapPost("/api/tables/{tableId:guid}/sessions", Create).RequireAuthorization(AuthSetup.DmPolicy).WithTags("Sessions");
+        app.MapGet("/api/sessions/{code}", GetDmView).RequireAuthorization(AuthSetup.DmPolicy).WithTags("Sessions");
         return app;
     }
 

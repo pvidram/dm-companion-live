@@ -21,7 +21,7 @@ public static class TablesEndpoints
 
     public static IEndpointRouteBuilder MapTables(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/tables").RequireAuthorization().WithTags("Tables");
+        var group = app.MapGroup("/api/tables").RequireAuthorization(AuthSetup.DmPolicy).WithTags("Tables");
         group.MapGet("/", List);
         group.MapPost("/", Create);
         group.MapGet("/{id:guid}", Get);

@@ -18,8 +18,8 @@ public static class AuthEndpoints
     public static IEndpointRouteBuilder MapAuth(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
-        group.MapGet("/me", Me).RequireAuthorization();
-        group.MapPost("/logout", (Delegate)Logout).RequireAuthorization();
+        group.MapGet("/me", Me).RequireAuthorization(AuthSetup.DmPolicy);
+        group.MapPost("/logout", (Delegate)Logout).RequireAuthorization(AuthSetup.DmPolicy);
         return app;
     }
 

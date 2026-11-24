@@ -4,6 +4,8 @@ namespace DmCompanionLive.Api.Auth;
 
 public static class AuthSetup
 {
+    public const string DmPolicy = "Dm";
+
     public static IServiceCollection AddDmAuthentication(this IServiceCollection services, IHostEnvironment environment)
     {
         services
@@ -30,7 +32,11 @@ public static class AuthSetup
                     return Task.CompletedTask;
                 };
             });
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+            options.AddPolicy(DmPolicy, policy => policy
+                .AddAuthenticationSchemes(CookieAuthenticationDefaults.AuthenticationScheme)
+                .RequireAuthenticatedUser()
+                .RequireClaim("role", "dm")));
         return services;
     }
 }
