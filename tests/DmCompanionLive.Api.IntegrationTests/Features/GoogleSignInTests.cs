@@ -18,6 +18,17 @@ public sealed class GoogleSignInTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task With_only_a_client_id_google_sign_in_is_not_offered()
+    {
+        await using var factory = postgres.Factory.WithWebHostBuilder(builder => builder
+            .UseSetting("Authentication:Google:ClientId", "test-client-id"));
+
+        var response = await factory.CreateHttpsClient().GetAsync("/api/auth/google/login");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task With_credentials_sign_in_redirects_to_google()
     {
         await using var factory = postgres.Factory.WithWebHostBuilder(builder => builder
@@ -62,6 +73,9 @@ public sealed class GoogleSignInTests(PostgresFixture postgres)
     [InlineData("https://evil.example", "/")]
     [InlineData("//evil.example", "/")]
     [InlineData("/\\evil.example", "/")]
+    [InlineData("/\t/evil.example", "/")]
+    [InlineData("/\n/evil.example", "/")]
+    [InlineData("/a\\b", "/")]
     public void Only_local_return_urls_are_kept(string? returnUrl, string expected) =>
         AuthEndpoints.SafeReturnUrl(returnUrl).Should().Be(expected);
 }

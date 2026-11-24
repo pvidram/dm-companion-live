@@ -37,7 +37,7 @@ public static class AuthEndpoints
     /// <summary>Keeps <paramref name="returnUrl"/> only if it stays on this site (no open redirect).</summary>
     public static string SafeReturnUrl(string? returnUrl) =>
         returnUrl is { Length: > 0 } url && url[0] == '/' && !url.StartsWith("//", StringComparison.Ordinal)
-            && !url.StartsWith("/\\", StringComparison.Ordinal)
+            && !url.Any(c => c < 0x20 || c == 0x7F || c == '\\')
             ? url
             : "/";
 
