@@ -100,4 +100,44 @@ public sealed class TablesTests(PostgresFixture postgres)
             $"/api/tables/{table.Id}/characters", new { name = "Nim", maxHp = 0, ac = 12, dexModifier = 0 }))
             .StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task Another_dm_cannot_touch_characters_of_my_table()
+    {
+        var owner = await postgres.Factory.CreateDmClientAsync();
+        var intruder = await postgres.Factory.CreateDmClientAsync();
+        var table = (await (await owner.PostAsJsonAsync("/api/tables", new { name = "Mine" }))
+            .Content.ReadFromJsonAsync<TableDto>(TestJson.Options))!;
+        var character = (await (await owner.PostAsJsonAsync(
+                $"/api/tables/{table.Id}/characters", new { name = "Nim", maxHp = 10, ac = 12, dexModifier = 1 }))
+            .Content.ReadFromJsonAsync<CharacterDto>(TestJson.Options))!;
+
+        (await intruder.PostAsJsonAsync(
+                $"/api/tables/{table.Id}/characters", new { name = "Evil", maxHp = 1, ac = 1, dexModifier = 0 }))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await intruder.PutAsJsonAsync(
+                $"/api/tables/{table.Id}/characters/{character.Id}",
+                new { name = "Stolen", maxHp = 99, ac = 99, dexModifier = 9 }))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await intruder.DeleteAsync($"/api/tables/{table.Id}/characters/{character.Id}"))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+        var loaded = await owner.GetFromJsonAsync<TableDto>($"/api/tables/{table.Id}", TestJson.Options);
+        loaded!.Characters.Should().ContainSingle().Which.Should().Be(character);
+    }
+
+    [Fact]
+    public async Task Unknown_character_ids_are_404()
+    {
+        var client = await postgres.Factory.CreateDmClientAsync();
+        var table = (await (await client.PostAsJsonAsync("/api/tables", new { name = "Mine" }))
+            .Content.ReadFromJsonAsync<TableDto>(TestJson.Options))!;
+        var unknown = Guid.NewGuid();
+
+        (await client.PutAsJsonAsync(
+                $"/api/tables/{table.Id}/characters/{unknown}", new { name = "Ghost", maxHp = 5, ac = 10, dexModifier = 0 }))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await client.DeleteAsync($"/api/tables/{table.Id}/characters/{unknown}"))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 }
