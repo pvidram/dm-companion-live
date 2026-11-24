@@ -10,17 +10,27 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public string ConnectionString => _container.GetConnectionString();
 
+    public ApiFactory Factory { get; private set; } = null!;
+
     public AppDbContext CreateDbContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(ConnectionString).Options);
 
     public async Task InitializeAsync()
     {
         await _container.StartAsync();
-        await using var db = CreateDbContext();
-        await db.Database.MigrateAsync();
+        await using (var db = CreateDbContext())
+        {
+            await db.Database.MigrateAsync();
+        }
+
+        Factory = new ApiFactory(ConnectionString);
     }
 
-    public async Task DisposeAsync() => await _container.DisposeAsync();
+    public async Task DisposeAsync()
+    {
+        await Factory.DisposeAsync();
+        await _container.DisposeAsync();
+    }
 }
 
 [CollectionDefinition(Name)]
