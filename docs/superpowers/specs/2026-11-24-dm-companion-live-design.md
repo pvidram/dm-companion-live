@@ -83,8 +83,7 @@ REST (OpenAPI via `Microsoft.AspNetCore.OpenApi`, UI via Scalar, `ProblemDetails
 
 SignalR hub `/hubs/combat` (one group per session):
 - On connect: identity resolved once (DM cookie or `GuestToken`), caller receives its full view.
-- DM commands: `AddCombatants`, `RollInitiative`, `Start`, `NextTurn`, `ApplyDamage`, `Heal`, `SetConditions`, `Reveal`, `Remove`, `End`.
-- Player commands: `ClaimCharacter`, `SetMyInitiative`, `ApplyDamageToMe`, `HealMe`, `SetMyConditions`.
+- Commands (each with `expectedVersion`): `AddMonster`, `RollMonsterInitiative`, `Start`, `NextTurn`, `End`, `Reveal`, `Remove` (DM only); `ApplyDamage`, `Heal`, `SetTempHp`, `SetInitiative`, `SetConditions` (DM on anyone, a player on the character they claimed); `Claim` (players). The domain authorizes every command, so both roles share the same hub methods.
 - Command pipeline: load session → domain method → save state + log entry in one transaction with optimistic concurrency on `Version` → broadcast `DmView` to the DM and `PlayerView` to players.
 - Every command carries `expectedVersion`; mismatch → `Conflict`, client re-fetches the snapshot.
 - Rejections return `CommandResult` with a localizable error code (`NotYourCharacter`, `SessionEnded`, `Conflict`, …). Domain exceptions are typed and mapped in one place.
