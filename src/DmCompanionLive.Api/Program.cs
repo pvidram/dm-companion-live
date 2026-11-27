@@ -89,6 +89,7 @@ app.MapSessions();
 app.MapJoinSession();
 app.MapSrd();
 app.MapFavorites();
+app.MapMonsterTemplates();
 app.MapHub<CombatHub>("/hubs/combat");
 
 app.Run();
