@@ -67,7 +67,10 @@ public sealed class CombatSession
     /// <summary>
     /// Adds <paramref name="count"/> copies of a monster, numbered when needed. With <paramref name="hpDice"/>
     /// each one rolls its own HP from the seed's formula; otherwise they get the seed's average HP. All or
-    /// nothing: one version, one log entry (without hit points).
+    /// nothing: one version, one log entry (without hit points). A visible monster is numbered only against
+    /// the names of visible combatants, so the numbers never reveal hidden monsters to the players (after a
+    /// later Reveal two combatants may share a display name; ids differ). A hidden monster is numbered
+    /// against every combatant, since only the DM sees it.
     /// </summary>
     public IReadOnlyList<Guid> AddMonsters(Actor actor, MonsterSeed seed, int count, IDiceRoller? hpDice, DateTimeOffset now)
     {
@@ -81,7 +84,8 @@ public sealed class CombatSession
 
         var baseName = Names.Validate(seed.Name);
         var firstSortOrder = NextSortOrder();
-        var monsters = MonsterNames.Next(baseName, count, _combatants.Select(c => c.Name))
+        var namesInUse = _combatants.Where(c => seed.IsHidden || !c.IsHidden).Select(c => c.Name);
+        var monsters = MonsterNames.Next(baseName, count, namesInUse)
             .Select((name, i) => Combatant.CreateMonster(seed, name, HitPointsFor(seed, hpDice), firstSortOrder + i))
             .ToList();
 
