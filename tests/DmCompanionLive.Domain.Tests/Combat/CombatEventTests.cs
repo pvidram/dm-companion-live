@@ -17,7 +17,7 @@ public class CombatEventTests
         session.RollMonsterInitiative(Dm, new FixedDice(10), Now);
 
         session.UncommittedEvents.Select(e => (e.Type, e.VisibleToPlayers)).Should().Equal(
-            ("MonsterAdded", false),
+            ("MonstersAdded", false),
             ("DamageApplied", false),
             ("Revealed", true),
             ("DamageApplied", true),

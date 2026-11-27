@@ -196,6 +196,9 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
                             b1.Property<int?>("Initiative")
                                 .HasColumnType("integer");
 
+                            b1.Property<int>("InitiativeBonus")
+                                .HasColumnType("integer");
+
                             b1.Property<bool>("IsHidden")
                                 .HasColumnType("boolean");
 
@@ -221,9 +224,14 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
                             b1.Property<int>("SortOrder")
                                 .HasColumnType("integer");
 
-                            b1.Property<string>("SourceRef")
+                            b1.Property<string>("SourceId")
                                 .HasMaxLength(120)
                                 .HasColumnType("character varying(120)");
+
+                            b1.Property<string>("SourceKind")
+                                .IsRequired()
+                                .HasMaxLength(16)
+                                .HasColumnType("character varying(16)");
 
                             b1.Property<int>("TempHp")
                                 .HasColumnType("integer");

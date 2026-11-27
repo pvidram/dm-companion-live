@@ -134,7 +134,7 @@ public sealed class CombatHubCommandTests(PostgresFixture postgres) : IAsyncLife
         var dmLog = (await dm.Hub.InvokeAsync<SnapshotResult>("GetSnapshot")).Log;
         var playerLog = (await ana.Hub.InvokeAsync<SnapshotResult>("GetSnapshot")).Log;
 
-        dmLog.Select(e => e.Type).Should().Equal("MonsterAdded", "Revealed");
+        dmLog.Select(e => e.Type).Should().Equal("MonstersAdded", "Revealed");
         playerLog.Select(e => e.Type).Should().Equal("Revealed");
         await ana.Log.WaitForAsync(entries => entries.GetArrayLength() > 0);
         ana.Log.All.SelectMany(m => m.EnumerateArray()).Select(e => e.GetProperty("type").GetString())

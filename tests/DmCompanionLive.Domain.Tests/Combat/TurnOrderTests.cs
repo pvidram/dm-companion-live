@@ -219,4 +219,31 @@ public class TurnOrderTests
     }
 
     private static Combatant Find(CombatSession session, Guid id) => session.Combatants.Single(c => c.Id == id);
+
+    [Fact]
+    public void A_combatant_added_mid_round_with_a_higher_initiative_than_the_current_one_acts_next()
+    {
+        // Intended: turns go to whoever has not acted this round, in initiative order (Plan 2 decision).
+        var session = NewSession(new PcSeed("Lyra", 20, 15), new PcSeed("Torvald", 30, 18), new PcSeed("Nim", 18, 14));
+        var (lyra, torvald, nim) = (Id(session, "Lyra"), Id(session, "Torvald"), Id(session, "Nim"));
+        session.SetInitiative(Dm, lyra, 20, Now);
+        session.SetInitiative(Dm, torvald, 10, Now);
+        session.SetInitiative(Dm, nim, 5, Now);
+        session.Start(Dm, Now);
+        session.NextTurn(Dm, Now);
+        session.CurrentTurnId.Should().Be(torvald);
+
+        var ogre = session.AddMonster(Dm, new MonsterSeed("Ogre", 68, 11), Now);
+        session.SetInitiative(Dm, ogre, 15, Now);
+        session.NextTurn(Dm, Now);
+
+        session.CurrentTurnId.Should().Be(ogre);
+        session.Round.Should().Be(1);
+        session.NextTurn(Dm, Now);
+        session.CurrentTurnId.Should().Be(nim);
+        session.NextTurn(Dm, Now);
+        (session.CurrentTurnId, session.Round).Should().Be((lyra, 2));
+    }
+
+    private static Guid Id(CombatSession session, string name) => session.Combatants.Single(c => c.Name == name).Id;
 }

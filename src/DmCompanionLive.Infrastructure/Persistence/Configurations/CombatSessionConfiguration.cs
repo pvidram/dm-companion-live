@@ -31,7 +31,8 @@ internal sealed class CombatSessionConfiguration : IEntityTypeConfiguration<Comb
             combatant.Property(c => c.Id).ValueGeneratedNever();
             combatant.Property(c => c.Name).HasMaxLength(Combatant.MaxNameLength).IsRequired();
             combatant.Property(c => c.Kind).HasConversion<string>().HasMaxLength(16);
-            combatant.Property(c => c.SourceRef).HasMaxLength(120);
+            combatant.Property(c => c.SourceKind).HasConversion<string>().HasMaxLength(16);
+            combatant.Property(c => c.SourceId).HasMaxLength(120);
             combatant.Ignore(c => c.IsDefeated);
         });
         builder.Navigation(s => s.Combatants).UsePropertyAccessMode(PropertyAccessMode.Field);
