@@ -7,5 +7,9 @@
   <Folder Name="/tests/">
     <Project Path="tests/DmCompanionLive.Api.IntegrationTests/DmCompanionLive.Api.IntegrationTests.csproj" />
     <Project Path="tests/DmCompanionLive.Domain.Tests/DmCompanionLive.Domain.Tests.csproj" />
+    <Project Path="tests/DmCompanionLive.Srd.Tests/DmCompanionLive.Srd.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/DmCompanionLive.SrdImport/DmCompanionLive.SrdImport.csproj" />
   </Folder>
 </Solution>
