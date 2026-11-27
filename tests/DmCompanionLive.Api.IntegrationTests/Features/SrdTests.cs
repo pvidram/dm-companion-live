@@ -68,6 +68,7 @@ public sealed class SrdTests(PostgresFixture postgres)
     [Theory]
     [InlineData("/api/srd/monsters?lang=fr")]
     [InlineData("/api/srd/monsters?page=0")]
+    [InlineData("/api/srd/monsters?page=10001")]
     public async Task An_unsupported_language_or_page_is_an_invalid_value(string url)
     {
         var client = await postgres.Factory.CreateDmClientAsync();

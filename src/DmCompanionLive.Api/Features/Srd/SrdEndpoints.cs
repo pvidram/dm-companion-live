@@ -11,6 +11,7 @@ namespace DmCompanionLive.Api.Features.Srd;
 public static class SrdEndpoints
 {
     public const int MaxQueryLength = 100;
+    public const int MaxPage = 10_000;
 
     public sealed record SrdMonsterSummaryDto(
         string Slug,
@@ -58,10 +59,11 @@ public static class SrdEndpoints
         string? q, string? lang, int? page, HttpRequest request, ClaimsPrincipal user, ISrdCatalog catalog,
         AppDbContext db, CancellationToken ct)
     {
-        if (q is { Length: > MaxQueryLength } || page < 1)
+        if (q is { Length: > MaxQueryLength } || page is < 1 or > MaxPage)
         {
             throw new DomainException(
-                DomainErrorCode.InvalidValue, $"The query has at most {MaxQueryLength} characters and pages start at 1.");
+                DomainErrorCode.InvalidValue,
+                $"The query has at most {MaxQueryLength} characters and pages go from 1 to {MaxPage}.");
         }
 
         var language = Languages.Resolve(lang, request);
