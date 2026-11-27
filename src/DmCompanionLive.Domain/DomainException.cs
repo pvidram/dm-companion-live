@@ -15,6 +15,7 @@ public enum DomainErrorCode
     NoCombatants,
     SessionExpired,
     Conflict,
+    MonsterNotFound,
 }
 
 public sealed class DomainException(DomainErrorCode code, string message) : Exception(message)

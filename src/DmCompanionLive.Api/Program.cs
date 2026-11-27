@@ -4,7 +4,9 @@ using DmCompanionLive.Api.Auth;
 using DmCompanionLive.Api.Errors;
 using DmCompanionLive.Api.Features.Auth;
 using DmCompanionLive.Api.Features.Combat;
+using DmCompanionLive.Api.Features.Monsters;
 using DmCompanionLive.Api.Features.Sessions;
+using DmCompanionLive.Api.Features.Srd;
 using DmCompanionLive.Api.Features.Tables;
 using DmCompanionLive.Domain.Combat;
 using DmCompanionLive.Infrastructure;
@@ -85,6 +87,8 @@ app.MapAuth(AuthSetup.IsGoogleConfigured(app.Configuration));
 app.MapTables();
 app.MapSessions();
 app.MapJoinSession();
+app.MapSrd();
+app.MapFavorites();
 app.MapHub<CombatHub>("/hubs/combat");
 
 app.Run();
