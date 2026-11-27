@@ -9,6 +9,7 @@ using DmCompanionLive.Api.Features.Tables;
 using DmCompanionLive.Domain.Combat;
 using DmCompanionLive.Infrastructure;
 using DmCompanionLive.Infrastructure.Persistence;
+using DmCompanionLive.Infrastructure.Srd;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -55,6 +56,9 @@ builder.Services.AddSingleton<IDiceRoller, RandomDiceRoller>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
 var app = builder.Build();
+
+// Load the SRD catalogue now: a missing or broken resource must stop the app, not its first search.
+app.Services.GetRequiredService<ISrdCatalog>();
 
 if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 {
