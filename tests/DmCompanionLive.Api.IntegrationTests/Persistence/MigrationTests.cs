@@ -13,7 +13,7 @@ namespace DmCompanionLive.Api.IntegrationTests.Persistence;
 public sealed class MigrationTests(PostgresFixture postgres)
 {
     [Fact]
-    public async Task Existing_combatants_keep_their_dex_as_initiative_bonus_and_their_srd_source()
+    public async Task Existing_combatants_keep_their_dex_as_initiative_bonus_and_their_srd_or_template_source()
     {
         var connectionString = new NpgsqlConnectionStringBuilder(postgres.ConnectionString)
         {
@@ -25,7 +25,7 @@ public sealed class MigrationTests(PostgresFixture postgres)
         {
             await db.GetService<IMigrator>().MigrateAsync("RealTimeCombat");
             Guid user = Guid.NewGuid(), table = Guid.NewGuid(), session = Guid.NewGuid();
-            Guid goblin = Guid.NewGuid(), orc = Guid.NewGuid();
+            Guid goblin = Guid.NewGuid(), orc = Guid.NewGuid(), bandit = Guid.NewGuid(), templateId = Guid.NewGuid();
             await db.Database.ExecuteSqlAsync($"""
                 INSERT INTO dm_users ("Id", "ExternalId", "DisplayName", "CreatedAt")
                 VALUES ({user}, 'dev:migration', 'Ana', now())
@@ -44,7 +44,8 @@ public sealed class MigrationTests(PostgresFixture postgres)
                      "Conditions", "IsHidden", "SourceRef", "ClaimedBy", "SortOrder", "SessionId")
                 VALUES
                     ({goblin}, 'Monster', 'Goblin', NULL, 2, 7, 7, 0, 15, 0, false, 'srd:goblin', NULL, 0, {session}),
-                    ({orc}, 'Monster', 'Orc', NULL, 1, 15, 15, 0, 13, 0, false, NULL, NULL, 1, {session})
+                    ({orc}, 'Monster', 'Orc', NULL, 1, 15, 15, 0, 13, 0, false, NULL, NULL, 1, {session}),
+                    ({bandit}, 'Monster', 'Bandit', NULL, 0, 11, 11, 0, 12, 0, false, {"template:" + templateId}, NULL, 2, {session})
                 """);
 
             await db.Database.MigrateAsync();
@@ -56,6 +57,9 @@ public sealed class MigrationTests(PostgresFixture postgres)
             var migratedOrc = loaded.Combatants.Single(c => c.Id == orc);
             (migratedOrc.InitiativeBonus, migratedOrc.SourceKind, migratedOrc.SourceId)
                 .Should().Be((1, MonsterSourceKind.None, (string?)null));
+            var migratedBandit = loaded.Combatants.Single(c => c.Id == bandit);
+            (migratedBandit.SourceKind, migratedBandit.SourceId)
+                .Should().Be((MonsterSourceKind.Template, templateId.ToString()));
         }
         finally
         {

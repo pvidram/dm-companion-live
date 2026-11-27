@@ -27,10 +27,11 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
                 nullable: false,
                 defaultValue: 0);
 
-            // Plan 2 rolled monster initiative with the Dex modifier, and stored SRD sources as "srd:<slug>".
+            // Plan 2 rolled monster initiative with the Dex modifier, and stored sources as "srd:<slug>" or "template:<id>".
             migrationBuilder.Sql("""
                 UPDATE combatants SET "InitiativeBonus" = "DexModifier";
                 UPDATE combatants SET "SourceKind" = 'Srd', "SourceId" = substr("SourceId", 5) WHERE "SourceId" LIKE 'srd:%';
+                UPDATE combatants SET "SourceKind" = 'Template', "SourceId" = substr("SourceId", 10) WHERE "SourceId" LIKE 'template:%';
                 UPDATE combatants SET "SourceId" = NULL WHERE "SourceKind" = 'None';
                 """);
         }
