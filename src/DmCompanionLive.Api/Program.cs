@@ -54,6 +54,7 @@ builder.Services
 builder.Services.AddSingleton<SessionPresence>();
 builder.Services.AddSingleton<CombatBroadcaster>();
 builder.Services.AddScoped<CombatCommandRunner>();
+builder.Services.AddScoped<MonsterSources>();
 builder.Services.AddSingleton<IDiceRoller, RandomDiceRoller>();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 

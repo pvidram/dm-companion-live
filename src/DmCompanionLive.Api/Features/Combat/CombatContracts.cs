@@ -82,8 +82,13 @@ public static class CombatErrors
     public const string Conflict = nameof(DomainErrorCode.Conflict);
 }
 
-/// <summary>A monster the DM adds by hand (SRD monsters and templates come in Plan 3).</summary>
-public sealed record MonsterInput(string Name, int MaxHp, int Ac, int DexModifier = 0, bool IsHidden = false)
-{
-    public MonsterSeed ToSeed() => new(Name, MaxHp, Ac, DexModifier, IsHidden);
-}
+/// <summary>
+/// A monster to add: exactly one of <see cref="MonsterSourceInput.SrdSlug"/>, <see cref="MonsterSourceInput.TemplateId"/>
+/// or <see cref="MonsterSourceInput.Custom"/>. Members are nullable so a missing value is answered with
+/// <c>InvalidValue</c> instead of a generic hub error.
+/// </summary>
+public sealed record AddMonsterInput(MonsterSourceInput? Source, int Count = 1, bool RollHp = false, bool IsHidden = false);
+
+public sealed record MonsterSourceInput(string? SrdSlug = null, Guid? TemplateId = null, CustomMonsterInput? Custom = null);
+
+public sealed record CustomMonsterInput(string? Name, int MaxHp, int Ac, int InitiativeBonus = 0, string? HpFormula = null);

@@ -13,10 +13,11 @@ public static class HubClients
     /// because the test server's handler does not do WebSockets; the hub code is the same.
     /// </summary>
     public static async Task<HubConnection> ConnectAsync(
-        this WebApplicationFactory<Program> factory, string? cookie = null, string? guestToken = null)
+        this WebApplicationFactory<Program> factory, string? cookie = null, string? guestToken = null, string? lang = null)
     {
+        var url = lang is null ? "https://localhost/hubs/combat" : $"https://localhost/hubs/combat?lang={lang}";
         var connection = new HubConnectionBuilder()
-            .WithUrl("https://localhost/hubs/combat", options =>
+            .WithUrl(url, options =>
             {
                 options.Transports = HttpTransportType.LongPolling;
                 options.HttpMessageHandlerFactory = _ => factory.Server.CreateHandler();

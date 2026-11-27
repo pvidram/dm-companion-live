@@ -1,6 +1,9 @@
 using DmCompanionLive.Api.Auth;
+using DmCompanionLive.Api.Features.Srd;
+using DmCompanionLive.Domain;
 using DmCompanionLive.Domain.Combat;
 using DmCompanionLive.Infrastructure.Persistence;
+using DmCompanionLive.Infrastructure.Srd;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -16,13 +19,18 @@ public sealed class CombatHub(
     AppDbContext db,
     SessionPresence presence,
     CombatCommandRunner runner,
-    IDiceRoller dice) : Hub<ICombatClient>
+    IDiceRoller dice,
+    MonsterSources monsterSources) : Hub<ICombatClient>
 {
     private const string SessionKey = "sessionId";
     private const int LogTail = 100;
 
     private Guid? JoinedSessionId =>
         Context.Items.TryGetValue(SessionKey, out var value) && value is Guid id ? id : null;
+
+    /// <summary>Language for SRD monster names, from the connection URL (<c>/hubs/combat?lang=es</c>); English by default.</summary>
+    private SrdLanguage Language =>
+        Languages.TryParse(Context.GetHttpContext()?.Request.Query["lang"].ToString()) ?? SrdLanguage.En;
 
     public async Task<SnapshotResult> Join(string code)
     {
@@ -70,8 +78,31 @@ public sealed class CombatHub(
             : await SnapshotAsync(session, identity.Actor);
     }
 
-    public Task<CommandResult> AddMonster(MonsterInput monster, int expectedVersion) =>
-        Run(expectedVersion, (s, actor, now) => s.AddMonster(actor, monster.ToSeed(), now));
+    /// <summary>
+    /// Adds monsters from an SRD slug, one of the DM's templates or ad-hoc stats. The source is resolved
+    /// before the session is loaded; its errors report the caller's <paramref name="expectedVersion"/>.
+    /// </summary>
+    public async Task<CommandResult> AddMonster(AddMonsterInput? input, int expectedVersion)
+    {
+        if (JoinedSessionId is null || CombatIdentity.From(Context.User) is not { } identity)
+        {
+            return CommandResult.Fail(CombatErrors.NotJoined, 0);
+        }
+
+        MonsterSeed seed;
+        try
+        {
+            seed = await monsterSources.ResolveAsync(input, identity.Actor, Language, Context.ConnectionAborted);
+        }
+        catch (DomainException e)
+        {
+            return CommandResult.Fail(e.Code.ToString(), expectedVersion);
+        }
+
+        var request = input!;
+        return await Run(expectedVersion, (s, actor, now) =>
+            s.AddMonsters(actor, seed, request.Count, request.RollHp ? dice : null, now));
+    }
 
     public Task<CommandResult> RollMonsterInitiative(int expectedVersion) =>
         Run(expectedVersion, (s, actor, now) => s.RollMonsterInitiative(actor, dice, now));
@@ -97,9 +128,11 @@ public sealed class CombatHub(
     public Task<CommandResult> SetInitiative(Guid combatantId, int value, int expectedVersion) =>
         Run(expectedVersion, (s, actor, now) => s.SetInitiative(actor, combatantId, value, now));
 
-    public Task<CommandResult> SetConditions(Guid combatantId, IReadOnlyList<Condition> conditions, int expectedVersion) =>
-        Run(expectedVersion, (s, actor, now) => s.SetConditions(
-            actor, combatantId, conditions.Aggregate(Condition.None, (all, c) => all | c), now));
+    public Task<CommandResult> SetConditions(Guid combatantId, IReadOnlyList<Condition>? conditions, int expectedVersion) =>
+        conditions is null
+            ? Task.FromResult(CommandResult.Fail(nameof(DomainErrorCode.InvalidValue), expectedVersion))
+            : Run(expectedVersion, (s, actor, now) => s.SetConditions(
+                actor, combatantId, conditions.Aggregate(Condition.None, (all, c) => all | c), now));
 
     public Task<CommandResult> Reveal(Guid combatantId, int expectedVersion) =>
         Run(expectedVersion, (s, actor, now) => s.Reveal(actor, combatantId, now));
