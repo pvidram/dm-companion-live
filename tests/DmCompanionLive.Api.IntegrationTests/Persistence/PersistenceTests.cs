@@ -1,5 +1,6 @@
 using DmCompanionLive.Api.IntegrationTests.Infrastructure;
 using DmCompanionLive.Domain.Combat;
+using DmCompanionLive.Domain.Monsters;
 using DmCompanionLive.Domain.Tables;
 using DmCompanionLive.Domain.Users;
 using DmCompanionLive.Infrastructure.Persistence;
@@ -194,5 +195,46 @@ public sealed class PersistenceTests(PostgresFixture postgres)
         db.Sessions.Add(session);
         await db.SaveChangesAsync();
         return session;
+    }
+
+    [Fact]
+    public async Task Templates_and_favourites_round_trip_are_unique_per_dm_and_go_with_their_dm()
+    {
+        var user = DmUser.Create($"dev:{Guid.NewGuid()}", "Ana", Now);
+        var template = MonsterTemplate.Create(
+            user.Id, new MonsterTemplateData("Bandido veterano", 30, 14, 3, "4d8 + 12", "Lleva una ballesta."), Now);
+        await using (var db = postgres.CreateDbContext())
+        {
+            db.Users.Add(user);
+            db.MonsterTemplates.Add(template);
+            db.FavoriteMonsters.Add(FavoriteMonster.Create(user.Id, "owlbear", Now));
+            await db.SaveChangesAsync();
+        }
+
+        await using (var read = postgres.CreateDbContext())
+        {
+            var loaded = await read.MonsterTemplates.SingleAsync(t => t.Id == template.Id);
+            (loaded.Name, loaded.HpFormula, loaded.Notes).Should().Be(("Bandido veterano", "4d8+12", "Lleva una ballesta."));
+            (await read.FavoriteMonsters.SingleAsync(f => f.OwnerId == user.Id)).SrdSlug.Should().Be("owlbear");
+        }
+
+        await using (var db = postgres.CreateDbContext())
+        {
+            db.FavoriteMonsters.Add(FavoriteMonster.Create(user.Id, "owlbear", Now));
+            var duplicate = () => db.SaveChangesAsync();
+            (await duplicate.Should().ThrowAsync<DbUpdateException>())
+                .Which.InnerException.Should().BeOfType<PostgresException>()
+                .Which.SqlState.Should().Be(PostgresErrorCodes.UniqueViolation);
+        }
+
+        await using (var db = postgres.CreateDbContext())
+        {
+            db.Users.Remove(await db.Users.SingleAsync(u => u.Id == user.Id));
+            await db.SaveChangesAsync();
+        }
+
+        await using var after = postgres.CreateDbContext();
+        (await after.MonsterTemplates.AnyAsync(t => t.OwnerId == user.Id)).Should().BeFalse();
+        (await after.FavoriteMonsters.AnyAsync(f => f.OwnerId == user.Id)).Should().BeFalse();
     }
 }

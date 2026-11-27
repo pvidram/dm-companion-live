@@ -68,6 +68,64 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
                     b.ToTable("combat_sessions", (string)null);
                 });
 
+            modelBuilder.Entity("DmCompanionLive.Domain.Monsters.FavoriteMonster", b =>
+                {
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SrdSlug")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OwnerId", "SrdSlug");
+
+                    b.ToTable("favorite_monsters", (string)null);
+                });
+
+            modelBuilder.Entity("DmCompanionLive.Domain.Monsters.MonsterTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Ac")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("HpFormula")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("InitiativeBonus")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MaxHp")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Notes")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.ToTable("monster_templates", (string)null);
+                });
+
             modelBuilder.Entity("DmCompanionLive.Domain.Tables.Table", b =>
                 {
                     b.Property<Guid>("Id")
@@ -247,6 +305,24 @@ namespace DmCompanionLive.Infrastructure.Persistence.Migrations
                         });
 
                     b.Navigation("Combatants");
+                });
+
+            modelBuilder.Entity("DmCompanionLive.Domain.Monsters.FavoriteMonster", b =>
+                {
+                    b.HasOne("DmCompanionLive.Domain.Users.DmUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("DmCompanionLive.Domain.Monsters.MonsterTemplate", b =>
+                {
+                    b.HasOne("DmCompanionLive.Domain.Users.DmUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("DmCompanionLive.Domain.Tables.Table", b =>
