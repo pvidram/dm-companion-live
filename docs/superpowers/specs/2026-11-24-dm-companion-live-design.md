@@ -75,7 +75,8 @@ Views computed server-side:
 
 REST (OpenAPI via `Microsoft.AspNetCore.OpenApi`, UI via Scalar, `ProblemDetails` errors):
 - `GET/POST/PUT/DELETE /api/tables`, `/api/tables/{id}/characters`
-- `GET/POST/PUT/DELETE /api/monsters/templates`; `GET/PUT/DELETE /api/monsters/favorites/{slug}`
+- `GET/POST/PUT/DELETE /api/monsters/templates` (+ `POST /api/monsters/templates/from-srd/{slug}`)
+- `GET /api/monsters/favorites`, `PUT/DELETE /api/monsters/favorites/{slug}`
 - `GET /api/srd/monsters?q=&lang=&page=` and `GET /api/srd/monsters/{slug}?lang=`
 - `POST /api/tables/{id}/sessions` → join code
 - `POST /api/sessions/{code}/join` (name) → `GuestToken` — rate limited
@@ -86,7 +87,7 @@ SignalR hub `/hubs/combat` (one group per session):
 - Commands (each with `expectedVersion`): `AddMonster` (from an SRD slug, a template or ad-hoc stats; count and average/rolled HP — see `2026-11-27-plan-3-srd-monsters-design.md`), `RollMonsterInitiative`, `Start`, `NextTurn`, `End`, `Reveal`, `Remove` (DM only); `ApplyDamage`, `Heal`, `SetTempHp`, `SetInitiative`, `SetConditions` (DM on anyone, a player on the character they claimed); `Claim` (players). The domain authorizes every command, so both roles share the same hub methods.
 - Command pipeline: load session → domain method → save state + log entry in one transaction with optimistic concurrency on `Version` → broadcast `DmView` to the DM and `PlayerView` to players.
 - Every command carries `expectedVersion`; mismatch → `Conflict`, client re-fetches the snapshot.
-- Rejections return `CommandResult` with a localizable error code (`NotYourCharacter`, `SessionEnded`, `Conflict`, …). Domain exceptions are typed and mapped in one place.
+- Rejections return `CommandResult` with a localizable error code (`NotYourCharacter`, `SessionEnded`, `Conflict`, `MonsterNotFound`, …). Domain exceptions are typed and mapped in one place.
 - Reconnect: SignalR automatic reconnect + full snapshot request (no diffs).
 - Sessions expire after 12 h of inactivity. One replica max (documented limitation).
 
@@ -113,8 +114,8 @@ SignalR hub `/hubs/combat` (one group per session):
 ## 7. SRD data and i18n
 
 - `tools/SrdImport` normalizes sources into `srd-monsters.json` (committed, with attribution), embedded in Infrastructure and loaded into an in-memory catalogue at startup (no database table).
-- Spanish source: the Spanish SRD 5.2.1 creature pack derived from compendio-srd (MIT tooling, CC-BY-4.0 content), as used in dm-companion.
-- English source: the TidyTuesday 2025-05-27 monsters dataset (SRD 5.2.1), merged by English name; creatures without English text keep the Spanish stat block (listed in `NOTICE.md`).
+- Spanish source: the dm-companion creature pack (`criaturas.json` at dm-companion commit `b95f1e65795d752d8ab167c60ff55751b38ec75b`), generated from compendio-srd (MIT tooling, CC-BY-4.0 content) commit `2d61b5dcabe91ab69d5c4a5a41822eb83c2038cc`.
+- English source: the TidyTuesday 2025-05-27 monsters dataset (SRD 5.2.1), pinned to commit `97a250500c85463e590b23f9e195c58232a04584`, merged by English name; all 330 creatures match and the importer fails on any mismatch.
 - Search: in memory, accent- and case-insensitive, over the English and Spanish names (exact, then prefix, then substring). No typo tolerance.
 - Attribution (CC-BY-4.0, modifications stated, WotC non-affiliation notice) in footer, About page and `NOTICE.md`. Code under MIT.
 - User-created content (templates, PC names) is not translated.

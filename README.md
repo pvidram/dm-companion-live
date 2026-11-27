@@ -36,6 +36,31 @@ Limits:
 - Sessions expire after 12 h without activity (`/join` returns 410, commands return `SessionExpired`).
 - `/join` is rate limited per remote IP (`RateLimiting:JoinPermitsPerMinute`, default 10).
 
+## SRD monsters, favourites and templates
+
+The catalogue holds the 330 monsters of the SRD 5.2.1 in English and Spanish, loaded in memory at startup from an embedded `srd-monsters.json`. All endpoints below are DM-only.
+
+- `GET /api/srd/monsters?q=&lang=&page=` searches both the English and Spanish names, ignoring case and accents (no typo tolerance), 20 per page. `GET /api/srd/monsters/{slug}?lang=` returns the numbers and the stat block. `lang` (`en`/`es`) falls back to `Accept-Language`, then English; an unknown `lang` is a 400 `InvalidValue`, an unknown slug a 404 `MonsterNotFound`.
+- Favourites: `PUT` and `DELETE /api/monsters/favorites/{slug}` (both idempotent) and `GET /api/monsters/favorites?lang=`.
+- Templates: CRUD under `/api/monsters/templates`, plus `POST /api/monsters/templates/from-srd/{slug}?lang=` to start from an SRD monster. A template is copied into the combat when used, so editing it later does not change monsters already added.
+
+To add monsters to a combat, connect to `/hubs/combat?lang=es` (the language used for SRD names) and call `AddMonster(input, expectedVersion)` with `{ source: { srdSlug | templateId | custom }, count (1-20), rollHp, isHidden }`. `custom` is `{ name, maxHp, ac, initiativeBonus, hpFormula? }`. Names are numbered ("Goblin 1", "Goblin 2"...), HP is the average unless `rollHp` is set and the monster has a formula. Errors: `InvalidValue`, `MonsterNotFound`, `NotAllowed`.
+
+Regenerating the data (only when the sources change; the Spanish pack comes from a local clone of dm-companion):
+
+```bash
+WORK="${TMPDIR:-/tmp}/srd-import" && mkdir -p "$WORK"
+git -C ~/Personal/dm-companion-main show \
+  b95f1e65795d752d8ab167c60ff55751b38ec75b:src/DmCompanion.Core/Glossary/Packs/criaturas.json > "$WORK/criaturas.json"
+curl -sSfL -o "$WORK/monsters.csv" \
+  https://raw.githubusercontent.com/rfordatascience/tidytuesday/97a250500c85463e590b23f9e195c58232a04584/data/2025/2025-05-27/monsters.csv
+echo "0f3ba32d721af74e66a92bbb2d5eae6cb394796c2887da81c88af571a82cedf4  $WORK/monsters.csv" | sha256sum -c
+dotnet run --project tools/DmCompanionLive.SrdImport -- \
+  "$WORK/criaturas.json" "$WORK/monsters.csv" src/DmCompanionLive.Infrastructure/Srd/srd-monsters.json
+```
+
+The data is licensed CC-BY-4.0; see [NOTICE.md](NOTICE.md) for the attribution and the sources.
+
 ## Google sign-in (optional)
 
 Off unless both `Authentication:Google:ClientId` and `Authentication:Google:ClientSecret` are set, e.g. locally with
