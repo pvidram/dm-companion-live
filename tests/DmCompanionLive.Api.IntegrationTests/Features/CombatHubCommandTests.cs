@@ -42,7 +42,7 @@ public sealed class CombatHubCommandTests(PostgresFixture postgres) : IAsyncLife
         var dmUser = await postgres.Factory.CreateDmAsync();
         var template = await CreateTemplateAsync(dmUser.Http, new
         {
-            name = "Bandido veterano", maxHp = 30, ac = 14, initiativeBonus = 3, hpFormula = "4d8+12",
+            name = "Bandido veterano", maxHp = 100, ac = 14, initiativeBonus = 3, hpFormula = "4d8+12",
         });
         var session = await dmUser.Http.CreateSessionAsync("Lyra");
         var dm = await ConnectAsync(session.JoinCode, cookie: dmUser.Cookie);
@@ -72,8 +72,11 @@ public sealed class CombatHubCommandTests(PostgresFixture postgres) : IAsyncLife
         var ana = await PlayerAsync(code, "Ana");
         var version = dm.Joined.Dm!.Version;
 
+        async Task<CommandResult> ResultAsync(Participant who, AddMonsterInput? input) =>
+            await who.Hub.InvokeAsync<CommandResult>("AddMonster", input, version);
+
         async Task<string?> ErrorAsync(Participant who, AddMonsterInput? input) =>
-            (await who.Hub.InvokeAsync<CommandResult>("AddMonster", input, version)).Error;
+            (await ResultAsync(who, input)).Error;
 
         (await ErrorAsync(dm, null)).Should().Be("InvalidValue");
         (await ErrorAsync(dm, new AddMonsterInput(null))).Should().Be("InvalidValue");
@@ -86,12 +89,14 @@ public sealed class CombatHubCommandTests(PostgresFixture postgres) : IAsyncLife
             .Should().Be("InvalidValue");
         (await ErrorAsync(dm, new AddMonsterInput(new MonsterSourceInput(Custom: new CustomMonsterInput("Orc", 15, 13, HpFormula: "2d7")))))
             .Should().Be("InvalidValue");
-        (await ErrorAsync(dm, new AddMonsterInput(new MonsterSourceInput(SrdSlug: "kraken-of-nowhere"))))
-            .Should().Be("MonsterNotFound");
+        var notFound = await ResultAsync(dm, new AddMonsterInput(new MonsterSourceInput(SrdSlug: "kraken-of-nowhere")));
+        notFound.Error.Should().Be("MonsterNotFound");
+        notFound.Version.Should().Be(version);
         (await ErrorAsync(dm, new AddMonsterInput(new MonsterSourceInput(TemplateId: foreign.Id))))
             .Should().Be("MonsterNotFound");
-        (await ErrorAsync(ana, new AddMonsterInput(new MonsterSourceInput(SrdSlug: "goblin-warrior"))))
-            .Should().Be("NotAllowed");
+        var notAllowed = await ResultAsync(ana, new AddMonsterInput(new MonsterSourceInput(SrdSlug: "goblin-warrior")));
+        notAllowed.Error.Should().Be("NotAllowed");
+        notAllowed.Version.Should().Be(version);
 
         (await dm.Hub.InvokeAsync<SnapshotResult>("GetSnapshot")).Dm!.Version.Should().Be(version);
     }
