@@ -9,7 +9,7 @@ In scope:
 - DM favourites over the catalogue.
 - DM monster templates (CRUD, plus "duplicate from SRD").
 - Adding monsters to a combat from the SRD, a template or ad-hoc stats, several at once, with average or rolled HP.
-- Plan 3 carry-over: `InvalidValue` (not a generic hub error) for null or malformed `AddMonster` arguments; a test documenting that a combatant added mid-round with a higher initiative than the current one acts next.
+- Plan 3 carry-over: `InvalidValue` (not a generic hub error) for null or malformed `AddMonster` and `SetConditions` arguments; a test documenting that a combatant added mid-round with a higher initiative than the current one acts next.
 
 Out of scope: typo-tolerant search; CR/type filters in the API (added if Plan 4 needs them); editable stat blocks; any UI, footer or About page (Plan 4).
 
