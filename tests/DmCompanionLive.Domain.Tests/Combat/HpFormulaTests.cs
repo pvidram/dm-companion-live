@@ -29,6 +29,8 @@ public class HpFormulaTests
     [InlineData("2d6+")]
     [InlineData("2d6*2")]
     [InlineData("abc")]
+    [InlineData("٢d8")]
+    [InlineData("2d6\n")]
     public void Anything_else_is_an_invalid_value(string? text)
     {
         var act = () => HpFormula.Parse(text);

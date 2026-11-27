@@ -10,7 +10,7 @@ public sealed record HpFormula
     public const int MaxModifier = 1000;
 
     private static readonly int[] AllowedSides = [4, 6, 8, 10, 12, 20];
-    private static readonly Regex Pattern = new(@"^(\d{1,3})d(\d{1,2})(?:([+-])(\d{1,4}))?$", RegexOptions.CultureInvariant);
+    private static readonly Regex Pattern = new(@"^([0-9]{1,3})d([0-9]{1,2})(?:([+-])([0-9]{1,4}))?\z", RegexOptions.CultureInvariant);
 
     private HpFormula(int count, int sides, int modifier)
     {
