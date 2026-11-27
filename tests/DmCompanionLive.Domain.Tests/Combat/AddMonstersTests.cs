@@ -46,6 +46,42 @@ public class AddMonstersTests
     }
 
     [Fact]
+    public void Visible_monsters_are_numbered_only_against_visible_names()
+    {
+        var session = NewSession();
+        var hidden = Goblin with { IsHidden = true };
+        session.AddMonsters(Dm, hidden, 2, hpDice: null, Now);
+
+        session.AddMonsters(Dm, Goblin, 1, hpDice: null, Now);
+        session.AddMonsters(Dm, Goblin, 2, hpDice: null, Now);
+
+        MonsterNamesIn(session).Should().Equal(
+            "Goblin Warrior 1", "Goblin Warrior 2", "Goblin Warrior", "Goblin Warrior 2", "Goblin Warrior 3");
+    }
+
+    [Fact]
+    public void Hidden_monsters_are_numbered_against_every_name()
+    {
+        var session = NewSession();
+        session.AddMonsters(Dm, Goblin, 1, hpDice: null, Now);
+
+        session.AddMonsters(Dm, Goblin with { IsHidden = true }, 2, hpDice: null, Now);
+
+        MonsterNamesIn(session).Should().Equal("Goblin Warrior", "Goblin Warrior 2", "Goblin Warrior 3");
+    }
+
+    [Fact]
+    public void A_huge_numeric_suffix_is_ignored_when_numbering()
+    {
+        var session = NewSession();
+        session.AddMonster(Dm, new MonsterSeed("Goblin Warrior 2147483647", 7, 15), Now);
+
+        session.AddMonsters(Dm, Goblin, 2, hpDice: null, Now);
+
+        MonsterNamesIn(session).Should().Equal("Goblin Warrior 2147483647", "Goblin Warrior 1", "Goblin Warrior 2");
+    }
+
+    [Fact]
     public void Monsters_get_average_hp_unless_dice_are_given()
     {
         var session = NewSession();
