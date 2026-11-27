@@ -42,7 +42,8 @@ public sealed class DomainExceptionHandler(IProblemDetailsService problemDetails
     public static int StatusFor(DomainErrorCode code) => code switch
     {
         DomainErrorCode.NotAllowed or DomainErrorCode.NotYourCharacter => StatusCodes.Status403Forbidden,
-        DomainErrorCode.CombatantNotFound or DomainErrorCode.CharacterNotFound => StatusCodes.Status404NotFound,
+        DomainErrorCode.CombatantNotFound or DomainErrorCode.CharacterNotFound or DomainErrorCode.MonsterNotFound
+            => StatusCodes.Status404NotFound,
         DomainErrorCode.InvalidValue => StatusCodes.Status400BadRequest,
         DomainErrorCode.SessionExpired => StatusCodes.Status410Gone,
         _ => StatusCodes.Status409Conflict,
