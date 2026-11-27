@@ -5,7 +5,7 @@ namespace DmCompanionLive.Domain.Tables;
 /// <summary>A DM's campaign: its name and the party's player characters.</summary>
 public sealed class Table
 {
-    public const int MaxNameLength = 80;
+    public const int MaxNameLength = Names.MaxLength;
 
     private readonly List<PlayerCharacter> _characters = [];
 
@@ -27,15 +27,7 @@ public sealed class Table
         return table;
     }
 
-    public void Rename(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > MaxNameLength)
-        {
-            throw new DomainException(DomainErrorCode.InvalidValue, $"Name must have 1 to {MaxNameLength} characters.");
-        }
-
-        Name = name.Trim();
-    }
+    public void Rename(string name) => Name = Names.Validate(name);
 
     public PlayerCharacter AddCharacter(string name, int maxHp, int ac, int dexModifier)
     {
