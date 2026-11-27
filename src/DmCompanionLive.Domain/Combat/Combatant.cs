@@ -3,6 +3,7 @@ namespace DmCompanionLive.Domain.Combat;
 public sealed class Combatant
 {
     public const int MaxNameLength = Names.MaxLength;
+    public const int MaxInitiativeBonus = 30;
 
     private Combatant()
     {
@@ -20,7 +21,9 @@ public sealed class Combatant
     public int Ac { get; private set; }
     public Condition Conditions { get; private set; }
     public bool IsHidden { get; private set; }
-    public string? SourceRef { get; private set; }
+    public int InitiativeBonus { get; private set; }
+    public MonsterSourceKind SourceKind { get; private set; }
+    public string? SourceId { get; private set; }
     public Guid? ClaimedBy { get; private set; }
     public int SortOrder { get; private set; }
 
@@ -42,24 +45,35 @@ public sealed class Combatant
             CurrentHp = seed.MaxHp,
             Ac = seed.Ac,
             DexModifier = seed.DexModifier,
+            InitiativeBonus = seed.DexModifier,
             SortOrder = sortOrder,
         };
     }
 
-    internal static Combatant CreateMonster(MonsterSeed seed, int sortOrder)
+    internal static Combatant CreateMonster(MonsterSeed seed, string name, int maxHp, int sortOrder)
     {
-        Validate(seed.Name, seed.MaxHp, seed.Ac);
+        Validate(name, maxHp, seed.Ac);
+        var initiativeBonus = seed.InitiativeBonus ?? seed.DexModifier;
+        if (Math.Abs(initiativeBonus) > MaxInitiativeBonus)
+        {
+            throw new DomainException(
+                DomainErrorCode.InvalidValue, $"Initiative bonus must be between -{MaxInitiativeBonus} and +{MaxInitiativeBonus}.");
+        }
+
+        var source = seed.Source ?? MonsterSource.None;
         return new Combatant
         {
             Id = Guid.NewGuid(),
             Kind = CombatantKind.Monster,
-            Name = seed.Name.Trim(),
-            MaxHp = seed.MaxHp,
-            CurrentHp = seed.MaxHp,
+            Name = name.Trim(),
+            MaxHp = maxHp,
+            CurrentHp = maxHp,
             Ac = seed.Ac,
             DexModifier = seed.DexModifier,
+            InitiativeBonus = initiativeBonus,
             IsHidden = seed.IsHidden,
-            SourceRef = seed.SourceRef,
+            SourceKind = source.Kind,
+            SourceId = source.Id,
             SortOrder = sortOrder,
         };
     }

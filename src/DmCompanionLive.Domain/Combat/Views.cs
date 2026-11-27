@@ -21,7 +21,9 @@ public sealed record DmCombatantView(
     bool IsHidden,
     bool IsDefeated,
     Guid? ClaimedBy,
-    string? SourceRef);
+    int InitiativeBonus,
+    MonsterSourceKind SourceKind,
+    string? SourceId);
 
 public sealed record DmView(
     Guid SessionId,
@@ -73,7 +75,7 @@ public static class CombatViews
         session.Version,
         session.TurnOrder.Select(c => new DmCombatantView(
             c.Id, c.Kind, c.Name, c.Initiative, c.MaxHp, c.CurrentHp, c.TempHp, c.Ac,
-            ExpandConditions(c.Conditions), c.IsHidden, c.IsDefeated, c.ClaimedBy, c.SourceRef)).ToList());
+            ExpandConditions(c.Conditions), c.IsHidden, c.IsDefeated, c.ClaimedBy, c.InitiativeBonus, c.SourceKind, c.SourceId)).ToList());
 
     public static PlayerView ForPlayer(CombatSession session, Guid? guestId)
     {

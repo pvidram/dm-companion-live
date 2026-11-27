@@ -8,6 +8,7 @@ public sealed class CombatSession
 {
     /// <summary>A session nobody touches for this long expires and accepts no more commands.</summary>
     public static readonly TimeSpan InactivityLimit = TimeSpan.FromHours(12);
+    public const int MaxMonstersPerCommand = 20;
 
     private readonly List<Combatant> _combatants = [];
     private readonly List<CombatEvent> _uncommittedEvents = [];
@@ -63,15 +64,41 @@ public sealed class CombatSession
     public bool IsExpiredAt(DateTimeOffset now) =>
         Status != SessionStatus.Ended && now - LastActivityAt > InactivityLimit;
 
-    public Guid AddMonster(Actor actor, MonsterSeed seed, DateTimeOffset now)
+    /// <summary>
+    /// Adds <paramref name="count"/> copies of a monster, numbered when needed. With <paramref name="hpDice"/>
+    /// each one rolls its own HP from the seed's formula; otherwise they get the seed's average HP. All or
+    /// nothing: one version, one log entry (without hit points).
+    /// </summary>
+    public IReadOnlyList<Guid> AddMonsters(Actor actor, MonsterSeed seed, int count, IDiceRoller? hpDice, DateTimeOffset now)
     {
         EnsureOpen(now);
         EnsureDm(actor);
-        var monster = Combatant.CreateMonster(seed, NextSortOrder());
-        _combatants.Add(monster);
-        Record(actor, now, "MonsterAdded", monster);
-        return monster.Id;
+        if (count is < 1 or > MaxMonstersPerCommand)
+        {
+            throw new DomainException(
+                DomainErrorCode.InvalidValue, $"Add 1 to {MaxMonstersPerCommand} monsters at a time.");
+        }
+
+        var baseName = Names.Validate(seed.Name);
+        var firstSortOrder = NextSortOrder();
+        var monsters = MonsterNames.Next(baseName, count, _combatants.Select(c => c.Name))
+            .Select((name, i) => Combatant.CreateMonster(seed, name, HitPointsFor(seed, hpDice), firstSortOrder + i))
+            .ToList();
+
+        _combatants.AddRange(monsters);
+        Record(
+            actor,
+            now,
+            "MonstersAdded",
+            monsters[0],
+            ("baseName", baseName),
+            ("count", count),
+            ("combatantIds", string.Join(',', monsters.Select(m => m.Id))));
+        return monsters.Select(m => m.Id).ToList();
     }
+
+    public Guid AddMonster(Actor actor, MonsterSeed seed, DateTimeOffset now) =>
+        AddMonsters(actor, seed, 1, hpDice: null, now)[0];
 
     public void ApplyDamage(Actor actor, Guid combatantId, int amount, DateTimeOffset now)
     {
@@ -114,7 +141,7 @@ public sealed class CombatSession
         EnsureDm(actor);
         foreach (var monster in _combatants.Where(c => c.Kind == CombatantKind.Monster && c.Initiative is null))
         {
-            monster.SetInitiative(dice.D20() + monster.DexModifier);
+            monster.SetInitiative(dice.D20() + monster.InitiativeBonus);
         }
 
         Record(actor, now, "MonsterInitiativeRolled");
@@ -318,6 +345,9 @@ public sealed class CombatSession
             throw new DomainException(DomainErrorCode.InvalidValue, "Amount must be greater than zero.");
         }
     }
+
+    private static int HitPointsFor(MonsterSeed seed, IDiceRoller? hpDice) =>
+        hpDice is not null && seed.HpFormula is { } formula ? formula.Roll(hpDice) : seed.MaxHp;
 
     private static DomainException NotAllowed() =>
         new(DomainErrorCode.NotAllowed, "Only the DM of this session can do this.");

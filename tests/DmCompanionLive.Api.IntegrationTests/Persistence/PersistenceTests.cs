@@ -50,7 +50,8 @@ public sealed class PersistenceTests(PostgresFixture postgres)
         var goblin = loaded.Combatants.Single(c => c.Kind == CombatantKind.Monster);
         goblin.CurrentHp.Should().Be(4);
         goblin.Conditions.Should().Be(Condition.Prone | Condition.Poisoned);
-        goblin.SourceRef.Should().Be("srd:goblin");
+        (goblin.SourceKind, goblin.SourceId).Should().Be((MonsterSourceKind.Srd, "goblin"));
+        (goblin.InitiativeBonus, goblin.DexModifier).Should().Be((4, 2));
     }
 
     [Fact]
@@ -182,7 +183,7 @@ public sealed class PersistenceTests(PostgresFixture postgres)
         var table = Table.Create(user.Id, "Costa de Sal", Now);
         var dm = new Actor.Dm(user.Id);
         var session = CombatSession.Create(table.Id, user.Id, JoinCode.New(), [new PcSeed("Lyra", 20, 15)], Now);
-        var goblin = session.AddMonster(dm, new MonsterSeed("Goblin", 7, 15, SourceRef: "srd:goblin"), Now);
+        var goblin = session.AddMonster(dm, new MonsterSeed("Goblin", 7, 15, DexModifier: 2, Source: MonsterSource.Srd("goblin"), InitiativeBonus: 4), Now);
         session.ApplyDamage(dm, goblin, 3, Now);
         session.SetConditions(dm, goblin, Condition.Prone | Condition.Poisoned, Now);
         session.Start(dm, Now);
