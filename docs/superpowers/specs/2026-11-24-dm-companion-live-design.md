@@ -32,7 +32,7 @@ src/
   DmCompanionLive.Infrastructure/  # EF Core + Npgsql, DbContext, migrations, SRD seeding
   DmCompanionLive.Api/             # ASP.NET Core 10: Features/{Auth,Tables,Monsters,Srd,Combat}, SignalR hub, serves SPA
 web/                               # Vite + React + TypeScript SPA
-tools/SrdImport/                   # console tool: SRD sources -> normalized srd-monsters.json
+tools/DmCompanionLive.SrdImport/                   # console tool: SRD sources -> normalized srd-monsters.json
 tests/
   DmCompanionLive.Domain.Tests/
   DmCompanionLive.Api.IntegrationTests/
@@ -54,10 +54,10 @@ Rules:
 | `DmUser` | Id, GoogleSubject, DisplayName | No email stored |
 | `Table` | Id, OwnerId, Name, `PlayerCharacter[]` (Name, MaxHp, Ac) | Owned by a DM |
 | `CombatSession` (aggregate root) | Id, TableId, JoinCode, Status (`Lobby`/`Active`/`Ended`), Round, TurnIndex, Version, `Combatant[]`, LastActivityAt | Rules live here |
-| `Combatant` | Id, Kind (`Pc`/`Monster`), Name, Initiative, MaxHp, CurrentHp, TempHp, Ac, Conditions (flags enum, 15 SRD), IsHidden, IsDefeated, SourceRef (SRD slug / template id / none), ClaimedBy (guest id) | |
+| `Combatant` | Id, Kind (`Pc`/`Monster`), Name, Initiative, MaxHp, CurrentHp, TempHp, Ac, Conditions (flags enum, 15 SRD), IsHidden, IsDefeated, InitiativeBonus, SourceKind (None/Srd/Template), SourceId, ClaimedBy (guest id) | |
 | `MonsterTemplate` | Id, OwnerId, Name, MaxHp, Ac, InitiativeBonus, HpFormula?, Notes | DM's custom monsters |
 | `FavoriteMonster` | OwnerId, SrdSlug | |
-| `SrdMonster` | Slug, Name{en,es}, Type, Size, Cr, Ac, HpAverage, HpFormula, InitiativeBonus, Speed, Abilities, StatBlock{en?,es} | Read-only reference data, in memory (see Plan 3 design) |
+| `SrdMonster` | Slug, Name{en,es}, Type, Sizes, Cr, Ac, HpAverage, HpFormula, InitiativeBonus, Abilities, StatBlock{en,es} (English always present) | Read-only reference data, in memory (see Plan 3 design) |
 | `CombatLogEntry` | SessionId, Seq, At, Actor, Type, Params (JSON) | Append-only; stores type + params, not text |
 
 Domain rules (all unit-tested):
@@ -113,7 +113,7 @@ SignalR hub `/hubs/combat` (one group per session):
 
 ## 7. SRD data and i18n
 
-- `tools/SrdImport` normalizes sources into `srd-monsters.json` (committed, with attribution), embedded in Infrastructure and loaded into an in-memory catalogue at startup (no database table).
+- `tools/DmCompanionLive.SrdImport` normalizes sources into `srd-monsters.json` (committed, with attribution), embedded in Infrastructure and loaded into an in-memory catalogue at startup (no database table).
 - Spanish source: the dm-companion creature pack (`criaturas.json` at dm-companion commit `b95f1e65795d752d8ab167c60ff55751b38ec75b`), generated from compendio-srd (MIT tooling, CC-BY-4.0 content) commit `2d61b5dcabe91ab69d5c4a5a41822eb83c2038cc`.
 - English source: the TidyTuesday 2025-05-27 monsters dataset (SRD 5.2.1), pinned to commit `97a250500c85463e590b23f9e195c58232a04584`, merged by English name; all 330 creatures match and the importer fails on any mismatch.
 - Search: in memory, accent- and case-insensitive, over the English and Spanish names (exact, then prefix, then substring). No typo tolerance.
