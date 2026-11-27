@@ -2,7 +2,7 @@ namespace DmCompanionLive.Domain.Combat;
 
 public sealed class Combatant
 {
-    public const int MaxNameLength = 80;
+    public const int MaxNameLength = Names.MaxLength;
 
     private Combatant()
     {
@@ -99,10 +99,7 @@ public sealed class Combatant
 
     private static void Validate(string name, int maxHp, int ac)
     {
-        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > MaxNameLength)
-        {
-            throw new DomainException(DomainErrorCode.InvalidValue, $"Name must have 1 to {MaxNameLength} characters.");
-        }
+        Names.Validate(name);
 
         if (maxHp < 1)
         {

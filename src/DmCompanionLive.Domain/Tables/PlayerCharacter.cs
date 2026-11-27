@@ -22,17 +22,14 @@ public sealed class PlayerCharacter
 
     internal void Update(string name, int maxHp, int ac, int dexModifier)
     {
-        if (string.IsNullOrWhiteSpace(name) || name.Trim().Length > 80)
-        {
-            throw new DomainException(DomainErrorCode.InvalidValue, "Name must have 1 to 80 characters.");
-        }
+        var validName = Names.Validate(name);
 
         if (maxHp < 1 || ac < 0)
         {
             throw new DomainException(DomainErrorCode.InvalidValue, "Max HP must be at least 1 and AC cannot be negative.");
         }
 
-        Name = name.Trim();
+        Name = validName;
         MaxHp = maxHp;
         Ac = ac;
         DexModifier = dexModifier;

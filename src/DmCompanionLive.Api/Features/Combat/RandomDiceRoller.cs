@@ -4,5 +4,5 @@ namespace DmCompanionLive.Api.Features.Combat;
 
 public sealed class RandomDiceRoller : IDiceRoller
 {
-    public int D20() => Random.Shared.Next(1, 21);
+    public int Roll(int sides) => Random.Shared.Next(1, sides + 1);
 }

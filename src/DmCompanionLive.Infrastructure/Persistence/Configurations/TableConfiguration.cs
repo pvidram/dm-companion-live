@@ -1,3 +1,4 @@
+using DmCompanionLive.Domain;
 using DmCompanionLive.Domain.Users;
 using DmCompanionLive.Domain.Tables;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,7 @@ internal sealed class TableConfiguration : IEntityTypeConfiguration<Table>
             character.WithOwner().HasForeignKey("TableId");
             character.HasKey(c => c.Id);
             character.Property(c => c.Id).ValueGeneratedNever();
-            character.Property(c => c.Name).HasMaxLength(80).IsRequired();
+            character.Property(c => c.Name).HasMaxLength(Names.MaxLength).IsRequired();
         });
         builder.Navigation(t => t.Characters).UsePropertyAccessMode(PropertyAccessMode.Field);
     }
