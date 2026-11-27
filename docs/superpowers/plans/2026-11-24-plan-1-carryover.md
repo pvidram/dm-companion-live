@@ -30,9 +30,10 @@ Findings from the Plan 1 reviews that were deliberately deferred. Each later pla
 - `.env.*` also ignores a future `.env.example` (add `!.env.example` if one is created).
 
 ## Opportunistic
-- Magic `80` in `TableConfiguration` and `PlayerCharacter`; name validation repeated in three places (done in Plan 3: `Names.MaxLength` and `Names.Validate`)
+- Magic `80` in `TableConfiguration` and `PlayerCharacter`; name validation repeated in three places (done in Plan 3: `Names.MaxLength` and `Names.Validate`).
 
 ## Plan 3 — deferred
+- Numbering visible monsters ignores hidden ones, so names can repeat after a Reveal (Plan 4: allow renaming).
 - SRD search has no typo tolerance (in-memory prefix/substring match).
 - Favourites whose slug disappears after a new SRD import are skipped silently, never deleted.
 - Templates copy stats into combat: editing a template does not change monsters already added (Plan 4 must say so in the UI).

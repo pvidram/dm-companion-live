@@ -44,7 +44,7 @@ The catalogue holds the 330 monsters of the SRD 5.2.1 in English and Spanish, lo
 - Favourites: `PUT` and `DELETE /api/monsters/favorites/{slug}` (both idempotent) and `GET /api/monsters/favorites?lang=`.
 - Templates: CRUD under `/api/monsters/templates`, plus `POST /api/monsters/templates/from-srd/{slug}?lang=` to start from an SRD monster. A template is copied into the combat when used, so editing it later does not change monsters already added.
 
-To add monsters to a combat, connect to `/hubs/combat?lang=es` (the language used for SRD names) and call `AddMonster(input, expectedVersion)` with `{ source: { srdSlug | templateId | custom }, count (1-20), rollHp, isHidden }`. `custom` is `{ name, maxHp, ac, initiativeBonus, hpFormula? }`. Names are numbered ("Goblin 1", "Goblin 2"...), HP is the average unless `rollHp` is set and the monster has a formula. Errors: `InvalidValue`, `MonsterNotFound`, `NotAllowed`.
+To add monsters to a combat, connect to `/hubs/combat?lang=es` (the language used for SRD names) and call `AddMonster(input, expectedVersion)` with `{ source: { srdSlug | templateId | custom }, count (1-20), rollHp, isHidden }`. `custom` is `{ name, maxHp, ac, initiativeBonus, hpFormula? }`. A single monster whose name nobody uses keeps the plain name; otherwise names are numbered ("Goblin 1", "Goblin 2"...), counting only visible monsters when adding visible ones, HP is the average unless `rollHp` is set and the monster has a formula. Errors: `InvalidValue`, `MonsterNotFound`, `NotAllowed`.
 
 Regenerating the data (only when the sources change; the Spanish pack comes from a local clone of dm-companion):
 
