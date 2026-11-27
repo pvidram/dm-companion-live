@@ -55,9 +55,9 @@ Rules:
 | `Table` | Id, OwnerId, Name, `PlayerCharacter[]` (Name, MaxHp, Ac) | Owned by a DM |
 | `CombatSession` (aggregate root) | Id, TableId, JoinCode, Status (`Lobby`/`Active`/`Ended`), Round, TurnIndex, Version, `Combatant[]`, LastActivityAt | Rules live here |
 | `Combatant` | Id, Kind (`Pc`/`Monster`), Name, Initiative, MaxHp, CurrentHp, TempHp, Ac, Conditions (flags enum, 15 SRD), IsHidden, IsDefeated, SourceRef (SRD slug / template id / none), ClaimedBy (guest id) | |
-| `MonsterTemplate` | Id, OwnerId, Name, MaxHp, Ac, InitiativeBonus, Notes | DM's custom monsters |
+| `MonsterTemplate` | Id, OwnerId, Name, MaxHp, Ac, InitiativeBonus, HpFormula?, Notes | DM's custom monsters |
 | `FavoriteMonster` | OwnerId, SrdSlug | |
-| `SrdMonster` | Slug, Name{en,es}, Type, Size, Cr, Ac, HpAverage, HpFormula, Speed, Abilities, StatBlock{en,es} | Read-only reference data |
+| `SrdMonster` | Slug, Name{en,es}, Type, Size, Cr, Ac, HpAverage, HpFormula, InitiativeBonus, Speed, Abilities, StatBlock{en?,es} | Read-only reference data, in memory (see Plan 3 design) |
 | `CombatLogEntry` | SessionId, Seq, At, Actor, Type, Params (JSON) | Append-only; stores type + params, not text |
 
 Domain rules (all unit-tested):
@@ -83,7 +83,7 @@ REST (OpenAPI via `Microsoft.AspNetCore.OpenApi`, UI via Scalar, `ProblemDetails
 
 SignalR hub `/hubs/combat` (one group per session):
 - Identity is resolved per connection (DM cookie or `GuestToken`); the caller receives its full view when it calls `Join(code)`.
-- Commands (each with `expectedVersion`): `AddMonster`, `RollMonsterInitiative`, `Start`, `NextTurn`, `End`, `Reveal`, `Remove` (DM only); `ApplyDamage`, `Heal`, `SetTempHp`, `SetInitiative`, `SetConditions` (DM on anyone, a player on the character they claimed); `Claim` (players). The domain authorizes every command, so both roles share the same hub methods.
+- Commands (each with `expectedVersion`): `AddMonster` (from an SRD slug, a template or ad-hoc stats; count and average/rolled HP — see `2026-11-27-plan-3-srd-monsters-design.md`), `RollMonsterInitiative`, `Start`, `NextTurn`, `End`, `Reveal`, `Remove` (DM only); `ApplyDamage`, `Heal`, `SetTempHp`, `SetInitiative`, `SetConditions` (DM on anyone, a player on the character they claimed); `Claim` (players). The domain authorizes every command, so both roles share the same hub methods.
 - Command pipeline: load session → domain method → save state + log entry in one transaction with optimistic concurrency on `Version` → broadcast `DmView` to the DM and `PlayerView` to players.
 - Every command carries `expectedVersion`; mismatch → `Conflict`, client re-fetches the snapshot.
 - Rejections return `CommandResult` with a localizable error code (`NotYourCharacter`, `SessionEnded`, `Conflict`, …). Domain exceptions are typed and mapped in one place.
@@ -112,17 +112,17 @@ SignalR hub `/hubs/combat` (one group per session):
 
 ## 7. SRD data and i18n
 
-- `tools/SrdImport` normalizes sources into `srd-monsters.json` (committed, with attribution). Infrastructure seeds it idempotently at startup, keyed by a content hash.
+- `tools/SrdImport` normalizes sources into `srd-monsters.json` (committed, with attribution), embedded in Infrastructure and loaded into an in-memory catalogue at startup (no database table).
 - Spanish source: the Spanish SRD 5.2.1 creature pack derived from compendio-srd (MIT tooling, CC-BY-4.0 content), as used in dm-companion.
-- **Open risk — English source:** a structured, open SRD **5.2.1** English dataset must be found during planning. Fallbacks, in order: extract from the official SRD 5.2.1 PDF in `SrdImport`; or use SRD 5.1 English (also CC-BY-4.0) and document the version mismatch.
-- Search: Postgres `pg_trgm` + `unaccent` on the name in the requested language.
+- English source: the TidyTuesday 2025-05-27 monsters dataset (SRD 5.2.1), merged by English name; creatures without English text keep the Spanish stat block (listed in `NOTICE.md`).
+- Search: in memory, accent- and case-insensitive, over the English and Spanish names (exact, then prefix, then substring). No typo tolerance.
 - Attribution (CC-BY-4.0, modifications stated, WotC non-affiliation notice) in footer, About page and `NOTICE.md`. Code under MIT.
 - User-created content (templates, PC names) is not translated.
 
 ## 8. Testing
 
 - **Domain tests** (xUnit + AwesomeAssertions): all rules in §3; the bulk of the suite; TDD starts here. Target ≥ 90 % coverage on Domain.
-- **Integration tests** (`WebApplicationFactory` + Testcontainers PostgreSQL): REST slices with real migrations; SRD search with `pg_trgm`/`unaccent`; optimistic concurrency conflict; SignalR with real `HubConnection` clients (1 DM + 2 players) asserting each receives its view and **players never receive monster HP or hidden combatants**; auth via `/dev/login` and `GuestToken`.
+- **Integration tests** (`WebApplicationFactory` + Testcontainers PostgreSQL): REST slices with real migrations; optimistic concurrency conflict; SignalR with real `HubConnection` clients (1 DM + 2 players) asserting each receives its view and **players never receive monster HP or hidden combatants**; auth via `/dev/login` and `GuestToken`.
 - **OpenAPI contract test:** generated document must match the committed one.
 - **SrdImport tests:** small fixtures → snapshot of normalized output.
 - **Frontend:** Vitest + Testing Library for components and `useCombatHub` (fake connection: snapshot apply, conflict and reconnect re-fetch); MSW for REST mocks.

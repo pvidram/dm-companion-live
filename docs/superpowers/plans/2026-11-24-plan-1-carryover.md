@@ -13,8 +13,8 @@ Findings from the Plan 1 reviews that were deliberately deferred. Each later pla
 - Open hub connections are not re-checked after guest-token expiry, DM user deletion or session end: use `CloseOnAuthenticationExpiration` and a client reconnect policy (Plan 4).
 - A DM re-`Join` on the same connection keeps the previous session's DM group: leave the old groups or reject a second session (Plan 4).
 - A broadcast failure after commit reaches the caller as a hub error although the command was saved; the client must treat hub errors as "re-fetch the snapshot" (Plan 4).
-- Null `MonsterInput`/conditions arguments surface as a generic hub error instead of `InvalidValue`; revisit when AddMonster inputs change with SRD monsters (Plan 3).
-- Test (and document as intended) that a combatant added mid-round with a higher initiative than the current one acts next (Plan 3).
+- Null `MonsterInput`/conditions arguments surface as a generic hub error instead of `InvalidValue`; revisit when AddMonster inputs change with SRD monsters (Plan 3 — assigned, see `../specs/2026-11-27-plan-3-srd-monsters-design.md`).
+- Test (and document as intended) that a combatant added mid-round with a higher initiative than the current one acts next (Plan 3 — assigned, see `../specs/2026-11-27-plan-3-srd-monsters-design.md`).
 - Concurrent first Google sign-in of the same account hits the unique index (23505 gives a 500): retry the lookup on conflict. Assert that `returnUrl` round-trips through the real OAuth flow (Plan 5).
 - Throttle hub commands per connection: an idempotent `Claim` re-broadcasts to everyone (Plan 5).
 - `DmUsers.DisplayNameFrom` may split a surrogate pair when truncating; rename `GuestTokenHandler.Scheme` to `SchemeName` (it hides the base `Scheme` property); remove `JoinCode.Normalize` (only tests use it) (opportunistic).
