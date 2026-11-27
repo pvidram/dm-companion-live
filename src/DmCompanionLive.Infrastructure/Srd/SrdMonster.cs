@@ -72,6 +72,7 @@ public static class SrdJson
         // Keep accents readable in the committed file; it is data, never HTML.
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         RespectNullableAnnotations = true,
+        RespectRequiredConstructorParameters = true,
         Converters = { new JsonStringEnumConverter() },
     };
 }
